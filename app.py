@@ -1617,4 +1617,4 @@ def check_db():
 if __name__ == '__main__':
     with app.app_context():
         init_database()
-    app.run(debug=True)  # debug=True：代码修改后自动重启，报错时显示调试页面
+    app.run(host='0.0.0.0', port=9000)  # debug=True：代码修改后自动重启，报错时显示调试页面
