@@ -1,0 +1,1799 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    /* 紫色按钮样式 */
+    .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5a32a3;
+        border-color: #54319a;
+    }
+    .btn-outline-purple {
+        color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    .btn-outline-purple:hover {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+
+    /* 时间轴样式 */
+    .timeline {
+        position: relative;
+        padding-left: 1.5rem;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #dee2e6;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -1.5rem;
+        top: 0.5rem;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        background-color: #6c757d;
+    }
+    .timeline-item[data-faction="pro"]::before {
+        background-color: #28a745;
+    }
+    .timeline-item[data-faction="anti"]::before {
+        background-color: #dc3545;
+    }
+    .timeline-item[data-faction="neutral"]::before {
+        background-color: #6c757d;
+    }
+    .timeline-content {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        background-color: #f8f9fa;
+    }
+
+    /* 分栏模式样式 */
+    #columns-mode .col-md-4 {
+        border-right: 1px solid #dee2e6;
+    }
+    #columns-mode .col-md-4:last-child {
+        border-right: none;
+    }
+
+    /* 时间轴模式样式 */
+    .timeline-container {
+        position: relative;
+        padding: 20px 0;
+        height: auto;
+        overflow-y: auto;
+        max-height: 80vh;
+    }
+    .timeline-line {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: #6c757d;
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+    .timeline-item {
+        position: absolute;
+        width: 45%;
+        opacity: 0;
+        transition: all 0.5s ease;
+        z-index: 2;
+    }
+    .timeline-item.visible {
+        opacity: 1;
+    }
+    .timeline-left {
+        left: 5%;
+        width: 40%;
+        transform-origin: right center;
+    }
+    .timeline-right {
+        left: 55%;
+        width: 40%;
+        transform-origin: left center;
+    }
+    .timeline-content {
+        position: relative;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .timeline-left .timeline-content {
+        border-right: 3px solid #28a745;
+    }
+    .timeline-left .timeline-content::before {
+        content: '';
+        position: absolute;
+        right: -15px;
+        top: 50%;
+        width: 15px;
+        height: 2px;
+        background: #28a745;
+        transform: translateY(-50%);
+    }
+    .timeline-left .timeline-content::after {
+        content: '';
+        position: absolute;
+        right: -30px;
+        top: 50%;
+        width: 30px;
+        height: 2px;
+        background: #28a745;
+        transform: translateY(-50%);
+    }
+    .timeline-right .timeline-content {
+        border-left: 3px solid #dc3545;
+    }
+    .timeline-right .timeline-content::before {
+        content: '';
+        position: absolute;
+        left: -15px;
+        top: 50%;
+        width: 15px;
+        height: 2px;
+        background: #dc3545;
+        transform: translateY(-50%);
+    }
+    .timeline-right .timeline-content::after {
+        content: '';
+        position: absolute;
+        left: -30px;
+        top: 50%;
+        width: 30px;
+        height: 2px;
+        background: #dc3545;
+        transform: translateY(-50%);
+    }
+    .timeline-center .timeline-content {
+        border-top: 3px solid #6c757d;
+        width: 90%;
+        margin: 0 auto;
+    }
+    .timeline-center .timeline-content::before {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        width: 2px;
+        height: 10px;
+        background: #6c757d;
+        transform: translateX(-50%);
+    }
+    
+    /* 折叠观点样式 */
+    .collapsed-view {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    .expand-btn {
+        cursor: pointer;
+        color: #007bff;
+        text-decoration: underline;
+    }
+    .low-quality-comment {
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化所有功能
+    initInsertContent();
+    initFormToggle();
+    initFactionSelection();
+    initModeSwitching();
+    initCommentSorting();
+    initInteractions();
+    initCommentCollapse();
+});
+
+// 插入内容功能初始化
+function initInsertContent() {
+    // 插入内容功能
+    const insertImageBtn = document.getElementById('insert-image-btn');
+    const insertVideoBtn = document.getElementById('insert-video-btn');
+    const insertLatexBtn = document.getElementById('insert-latex-btn');
+    const imageInput = document.getElementById('image-input');
+    const videoInput = document.getElementById('video-input');
+    const commentTextarea = document.querySelector('textarea[name="content"]');
+    const latexEditor = document.getElementById('latex-editor');
+    const latexCode = document.getElementById('latex-code');
+    const insertLatex = document.getElementById('insert-latex');
+    const cancelLatex = document.getElementById('cancel-latex');
+    
+    // 论点论证模态框相关元素
+    const insertClaimLatexBtn = document.getElementById('insert-claim-latex-btn');
+    const claimLatexEditor = document.getElementById('claim-latex-editor');
+    const claimLatexCode = document.getElementById('claim-latex-code');
+    const insertClaimLatex = document.getElementById('insert-claim-latex');
+    const cancelClaimLatex = document.getElementById('cancel-claim-latex');
+    
+    const insertArgumentImageBtn = document.getElementById('insert-argument-image-btn');
+    const insertArgumentVideoBtn = document.getElementById('insert-argument-video-btn');
+    const insertArgumentLatexBtn = document.getElementById('insert-argument-latex-btn');
+    const argumentImageInput = document.getElementById('argument-image-input');
+    const argumentVideoInput = document.getElementById('argument-video-input');
+    const argumentLatexEditor = document.getElementById('argument-latex-editor');
+    const argumentLatexCode = document.getElementById('argument-latex-code');
+    const insertArgumentLatex = document.getElementById('insert-argument-latex');
+    const cancelArgumentLatex = document.getElementById('cancel-argument-latex');
+    
+    const claimTextarea = document.querySelector('textarea[name="claim"]');
+    const argumentTextarea = document.querySelector('textarea[name="argument"]');
+    
+    // 图片上传功能
+    if (insertImageBtn && imageInput && commentTextarea) {
+        insertImageBtn.addEventListener('click', function() {
+            imageInput.click();
+        });
+        
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const fileType = file.type.split('/')[0];
+                if (fileType !== 'image') {
+                    alert('请上传图片文件');
+                    return;
+                }
+                
+                const placeholder = `[图片上传中: ${file.name}...]`;
+                const startPos = commentTextarea.selectionStart;
+                const endPos = commentTextarea.selectionEnd;
+                const textBefore = commentTextarea.value.substring(0, startPos);
+                const textAfter = commentTextarea.value.substring(endPos);
+                commentTextarea.value = textBefore + placeholder + textAfter;
+                commentTextarea.focus();
+                
+                // 创建FormData对象并添加文件
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('post_id', "{{ post.id }}");
+                
+                // 显示上传进度
+                const progress = document.createElement('div');
+                progress.className = 'progress mt-2';
+                progress.innerHTML = `
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                `;
+                commentTextarea.parentNode.insertBefore(progress, commentTextarea.nextSibling);
+                
+                // 使用AJAX上传文件
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload_image', true);
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progress.querySelector('.progress-bar').style.width = percentComplete + '%';
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success && response.url) {
+                                // 替换占位符为实际图片标签
+                                const imgTag = `\n![${file.name}](${response.url})\n`;
+                                commentTextarea.value = commentTextarea.value.replace(placeholder, imgTag);
+                            } else {
+                                throw new Error(response.message || '上传失败');
+                            }
+                        } catch (e) {
+                            alert('图片上传失败: ' + e.message);
+                            // 移除占位符
+                            commentTextarea.value = commentTextarea.value.replace(placeholder, '');
+                        }
+                    } else {
+                        alert('图片上传失败，状态码: ' + xhr.status);
+                        // 移除占位符
+                        commentTextarea.value = commentTextarea.value.replace(placeholder, '');
+                    }
+                    progress.remove();
+                };
+                
+                xhr.onerror = function() {
+                    alert('网络错误，请检查连接后重试');
+                    commentTextarea.value = commentTextarea.value.replace(placeholder, '');
+                    progress.remove();
+                };
+                
+                xhr.send(formData);
+            }
+        });
+    }
+
+    if (insertVideoBtn && videoInput && commentTextarea) {
+        insertVideoBtn.addEventListener('click', function() {
+            videoInput.click();
+        });
+        
+        videoInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const placeholder = `[视频上传中: ${file.name}...]`;
+                const startPos = commentTextarea.selectionStart;
+                const endPos = commentTextarea.selectionEnd;
+                const textBefore = commentTextarea.value.substring(0, startPos);
+                const textAfter = commentTextarea.value.substring(endPos);
+                commentTextarea.value = textBefore + placeholder + textAfter;
+                commentTextarea.focus();
+                
+                // 创建FormData对象并添加文件
+                const formData = new FormData();
+                formData.append('video', file);
+                formData.append('post_id', "{{ post.id }}");
+                
+                // 显示上传进度
+                const progress = document.createElement('div');
+                progress.className = 'progress mt-2';
+                progress.innerHTML = `
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                `;
+                commentTextarea.parentNode.insertBefore(progress, commentTextarea.nextSibling);
+                
+                // 使用AJAX上传文件
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload_video', true);
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progress.querySelector('.progress-bar').style.width = percentComplete + '%';
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // 替换占位符为实际视频标签
+                            const videoTag = `\n[视频](${response.url})\n`;
+                            commentTextarea.value = commentTextarea.value.replace(placeholder, videoTag);
+                            progress.remove();
+                        } else {
+                            alert('视频上传失败: ' + response.message);
+                            progress.remove();
+                        }
+                    } else {
+                        alert('视频上传失败，请重试');
+                        progress.remove();
+                    }
+                };
+                
+                xhr.send(formData);
+            }
+        });
+    }
+    
+    if (insertLatexBtn && latexEditor && commentTextarea) {
+        insertLatexBtn.addEventListener('click', function() {
+            // 隐藏其他编辑器，显示LaTeX编辑器
+            latexEditor.classList.remove('d-none');
+        });
+        
+        cancelLatex.addEventListener('click', function() {
+            // 隐藏LaTeX编辑器并清空内容
+            latexEditor.classList.add('d-none');
+            latexCode.value = '';
+        });
+        
+        insertLatex.addEventListener('click', function() {
+            if (latexCode.value.trim()) {
+                const latexMarkdown = `\n$$\n${latexCode.value.trim()}\n$$\n`;
+                const startPos = commentTextarea.selectionStart;
+                const endPos = commentTextarea.selectionEnd;
+                const textBefore = commentTextarea.value.substring(0, startPos);
+                const textAfter = commentTextarea.value.substring(endPos);
+                commentTextarea.value = textBefore + latexMarkdown + textAfter;
+                commentTextarea.focus();
+                
+                // 隐藏编辑器并清空内容
+                latexEditor.classList.add('d-none');
+                latexCode.value = '';
+            }
+        });
+    }
+    
+    // 论点LaTeX功能
+    if (insertClaimLatexBtn && claimLatexEditor && claimTextarea) {
+        insertClaimLatexBtn.addEventListener('click', function() {
+            claimLatexEditor.classList.remove('d-none');
+        });
+        
+        cancelClaimLatex.addEventListener('click', function() {
+            claimLatexEditor.classList.add('d-none');
+            claimLatexCode.value = '';
+        });
+        
+        insertClaimLatex.addEventListener('click', function() {
+            if (claimLatexCode.value.trim() && claimTextarea) {
+                const latexMarkdown = `$$\n${claimLatexCode.value.trim()}\n$$`;
+                const startPos = claimTextarea.selectionStart;
+                const endPos = claimTextarea.selectionEnd;
+                const textBefore = claimTextarea.value.substring(0, startPos);
+                const textAfter = claimTextarea.value.substring(endPos);
+                claimTextarea.value = textBefore + latexMarkdown + textAfter;
+                claimTextarea.focus();
+                
+                claimLatexEditor.classList.add('d-none');
+                claimLatexCode.value = '';
+            }
+        });
+    }
+    
+    // 论证内容功能
+    if (insertArgumentImageBtn && argumentImageInput && argumentTextarea) {
+        insertArgumentImageBtn.addEventListener('click', function() {
+            argumentImageInput.click();
+        });
+        
+        argumentImageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const fileType = file.type.split('/')[0];
+                if (fileType !== 'image') {
+                    alert('请上传图片文件');
+                    return;
+                }
+                
+                const placeholder = `[图片上传中: ${file.name}...]`;
+                const startPos = argumentTextarea.selectionStart;
+                const endPos = argumentTextarea.selectionEnd;
+                const textBefore = argumentTextarea.value.substring(0, startPos);
+                const textAfter = argumentTextarea.value.substring(endPos);
+                argumentTextarea.value = textBefore + placeholder + textAfter;
+                argumentTextarea.focus();
+                
+                // 创建FormData对象并添加文件
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('post_id', "{{ post.id }}");
+                
+                // 显示上传进度
+                const progress = document.createElement('div');
+                progress.className = 'progress mt-2';
+                progress.innerHTML = `
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                `;
+                argumentTextarea.parentNode.insertBefore(progress, argumentTextarea.nextSibling);
+                
+                // 使用AJAX上传文件
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload_image', true);
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progress.querySelector('.progress-bar').style.width = percentComplete + '%';
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success && response.url) {
+                                // 替换占位符为实际图片标签
+                                const imgTag = `\n![${file.name}](${response.url})\n`;
+                                argumentTextarea.value = argumentTextarea.value.replace(placeholder, imgTag);
+                            } else {
+                                throw new Error(response.message || '上传失败');
+                            }
+                        } catch (e) {
+                            alert('图片上传失败: ' + e.message);
+                            // 移除占位符
+                            argumentTextarea.value = argumentTextarea.value.replace(placeholder, '');
+                        }
+                    } else {
+                        alert('图片上传失败，状态码: ' + xhr.status);
+                        // 移除占位符
+                        argumentTextarea.value = argumentTextarea.value.replace(placeholder, '');
+                    }
+                    progress.remove();
+                };
+                
+                xhr.onerror = function() {
+                    alert('网络错误，请检查连接后重试');
+                    argumentTextarea.value = argumentTextarea.value.replace(placeholder, '');
+                    progress.remove();
+                };
+                
+                xhr.send(formData);
+            }
+        });
+    }
+    
+    if (insertArgumentVideoBtn && argumentVideoInput && argumentTextarea) {
+        insertArgumentVideoBtn.addEventListener('click', function() {
+            argumentVideoInput.click();
+        });
+        
+        argumentVideoInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const placeholder = `[视频上传中: ${file.name}...]`;
+                const startPos = argumentTextarea.selectionStart;
+                const endPos = argumentTextarea.selectionEnd;
+                const textBefore = argumentTextarea.value.substring(0, startPos);
+                const textAfter = argumentTextarea.value.substring(endPos);
+                argumentTextarea.value = textBefore + placeholder + textAfter;
+                argumentTextarea.focus();
+                
+                // 创建FormData对象并添加文件
+                const formData = new FormData();
+                formData.append('video', file);
+                formData.append('post_id', "{{ post.id }}");
+                
+                // 显示上传进度
+                const progress = document.createElement('div');
+                progress.className = 'progress mt-2';
+                progress.innerHTML = `
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                `;
+                argumentTextarea.parentNode.insertBefore(progress, argumentTextarea.nextSibling);
+                
+                // 使用AJAX上传文件
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload_video', true);
+                
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progress.querySelector('.progress-bar').style.width = percentComplete + '%';
+                    }
+                };
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            // 替换占位符为实际视频标签
+                            const videoTag = `\n[视频](${response.url})\n`;
+                            argumentTextarea.value = argumentTextarea.value.replace(placeholder, videoTag);
+                            progress.remove();
+                        } else {
+                            alert('视频上传失败: ' + response.message);
+                            progress.remove();
+                        }
+                    } else {
+                        alert('视频上传失败，请重试');
+                        progress.remove();
+                    }
+                };
+                
+                xhr.send(formData);
+            }
+        });
+    }
+    
+    if (insertArgumentLatexBtn && argumentLatexEditor && argumentTextarea) {
+        insertArgumentLatexBtn.addEventListener('click', function() {
+            argumentLatexEditor.classList.remove('d-none');
+        });
+        
+        cancelArgumentLatex.addEventListener('click', function() {
+            argumentLatexEditor.classList.add('d-none');
+            argumentLatexCode.value = '';
+        });
+        
+        insertArgumentLatex.addEventListener('click', function() {
+            if (argumentLatexCode.value.trim()) {
+                const latexMarkdown = `\n$$\n${argumentLatexCode.value.trim()}\n$$\n`;
+                const startPos = argumentTextarea.selectionStart;
+                const endPos = argumentTextarea.selectionEnd;
+                const textBefore = argumentTextarea.value.substring(0, startPos);
+                const textAfter = argumentTextarea.value.substring(endPos);
+                argumentTextarea.value = textBefore + latexMarkdown + textAfter;
+                argumentTextarea.focus();
+                
+                argumentLatexEditor.classList.add('d-none');
+                argumentLatexCode.value = '';
+            }
+        });
+    }
+}
+
+// 表单切换功能初始化
+function initFormToggle() {
+    // 表单收起功能
+    const showNeutralFormBtn = document.getElementById('show-neutral-form-btn');
+    const neutralForm = document.getElementById('neutral-form');
+    const showArgumentFormBtn = document.getElementById('show-argument-form-btn');
+    const argumentFormElement = document.getElementById('argument-form');
+    
+    // 中立评论表单交互逻辑
+    if (showNeutralFormBtn && neutralForm) {
+        showNeutralFormBtn.addEventListener('click', function() {
+            // 切换中立评论表单显示状态
+            const isHidden = neutralForm.classList.contains('d-none');
+            neutralForm.classList.toggle('d-none');
+            
+            if (isHidden) {
+                // 显示中立评论表单
+                showNeutralFormBtn.innerHTML = '<i class="bi bi-x-circle"></i> 收起评论框';
+                showNeutralFormBtn.classList.remove('btn-outline-secondary');
+                showNeutralFormBtn.classList.add('btn-primary');
+                
+                // 隐藏阵营观点表单（如果已显示）
+                if (argumentFormElement && !argumentFormElement.classList.contains('d-none')) {
+                    argumentFormElement.classList.add('d-none');
+                    if (showArgumentFormBtn) {
+                        const faction = showArgumentFormBtn.dataset.faction || '{{ user_faction.faction if user_faction else "pro" }}';
+                        const factionText = faction === 'pro' ? '正方' : '反方';
+                        showArgumentFormBtn.innerHTML = `发表${factionText}观点`;
+                        // 重置阵营按钮样式（保持原有颜色）
+                        showArgumentFormBtn.classList.remove('btn-primary');
+                        if (faction === 'pro') {
+                            showArgumentFormBtn.classList.add('btn-success');
+                        } else {
+                            showArgumentFormBtn.classList.add('btn-danger');
+                        }
+                    }
+                }
+                
+                // 滚动到表单位置
+                neutralForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                // 隐藏中立评论表单
+                showNeutralFormBtn.innerHTML = '<i class="bi bi-chat-square-text"></i> 发表中立评论';
+                showNeutralFormBtn.classList.remove('btn-primary');
+                showNeutralFormBtn.classList.add('btn-outline-secondary');
+            }
+        });
+    }
+
+    // 显示论点论证表单
+    if (showArgumentFormBtn && argumentFormElement) {
+        showArgumentFormBtn.addEventListener('click', function() {
+            // 切换阵营观点表单显示状态
+            const isHidden = argumentFormElement.classList.contains('d-none');
+            argumentFormElement.classList.toggle('d-none');
+            
+            if (isHidden) {
+                // 显示阵营观点表单
+                showArgumentFormBtn.innerHTML = '<i class="bi bi-x-circle"></i> 收起评论框';
+                showArgumentFormBtn.classList.remove('btn-success', 'btn-danger');
+                showArgumentFormBtn.classList.add('btn-primary');
+                
+                // 隐藏中立评论表单（如果已显示）
+                if (neutralForm && !neutralForm.classList.contains('d-none')) {
+                    neutralForm.classList.add('d-none');
+                    if (showNeutralFormBtn) {
+                        showNeutralFormBtn.innerHTML = '<i class="bi bi-chat-square-text"></i> 发表中立评论';
+                        showNeutralFormBtn.classList.remove('btn-primary');
+                        showNeutralFormBtn.classList.add('btn-outline-secondary');
+                    }
+                }
+                
+                // 滚动到表单位置
+                argumentFormElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                // 隐藏阵营观点表单
+                const faction = showArgumentFormBtn.dataset.faction || '{{ user_faction.faction if user_faction else "pro" }}';
+                const factionText = faction === 'pro' ? '正方' : '反方';
+                showArgumentFormBtn.innerHTML = `发表${factionText}观点`;
+                // 恢复按钮样式（保持原有颜色）
+                showArgumentFormBtn.classList.remove('btn-primary');
+                if (faction === 'pro') {
+                    showArgumentFormBtn.classList.add('btn-success');
+                } else {
+                    showArgumentFormBtn.classList.add('btn-danger');
+                }
+            }
+        });
+    }
+    
+    // 确保中立表单隐藏时重置按钮状态
+    if (showNeutralFormBtn && neutralForm) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (neutralForm.classList.contains('d-none')) {
+                        showNeutralFormBtn.innerHTML = '<i class="bi bi-chat-square-text"></i> 发表中立评论';
+                        showNeutralFormBtn.classList.remove('btn-primary');
+                        showNeutralFormBtn.classList.add('btn-outline-secondary');
+                    }
+                }
+            });
+        });
+        
+        observer.observe(neutralForm, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+    
+    // 确保阵营表单隐藏时重置按钮状态
+    if (showArgumentFormBtn && argumentFormElement) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (argumentFormElement.classList.contains('d-none')) {
+                        const faction = showArgumentFormBtn.dataset.faction || '{{ user_faction.faction if user_faction else "pro" }}';
+                        const factionText = faction === 'pro' ? '正方' : '反方';
+                        showArgumentFormBtn.innerHTML = `发表${factionText}观点`;
+                        // 恢复按钮样式（保持原有颜色）
+                        showArgumentFormBtn.classList.remove('btn-primary');
+                        if (faction === 'pro') {
+                            showArgumentFormBtn.classList.add('btn-success');
+                        } else {
+                            showArgumentFormBtn.classList.add('btn-danger');
+                        }
+                    }
+                }
+            });
+        });
+        
+        observer.observe(argumentFormElement, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+}
+
+// 阵营选择功能初始化
+function initFactionSelection() {
+    // 处理加入阵营按钮点击
+    const proFactionBtn = document.getElementById('pro-faction-btn');
+    const antiFactionBtn = document.getElementById('anti-faction-btn');
+    
+    if (proFactionBtn) {
+        proFactionBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (!confirm('您确定要加入正方阵营吗？\n\n注意：阵营选择后不可更改。')) {
+                return;
+            }
+            
+            try {
+                proFactionBtn.disabled = true;
+                proFactionBtn.innerHTML = '<i class="bi bi-arrow-repeat bi-spin"></i> 处理中...';
+                
+                const response = await fetch('/post/{{ post.id }}/choose_faction/pro', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+                
+                if (response.ok) {
+                    // 重新加载页面以显示更新后的UI
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    alert('加入阵营失败: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('请求失败');
+            } finally {
+                proFactionBtn.disabled = false;
+                proFactionBtn.innerHTML = '加入正方阵营';
+            }
+        });
+    }
+    
+    if (antiFactionBtn) {
+        antiFactionBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (!confirm('您确定要加入反方阵营吗？\n\n注意：阵营选择后不可更改。')) {
+                return;
+            }
+            
+            try {
+                antiFactionBtn.disabled = true;
+                antiFactionBtn.innerHTML = '<i class="bi bi-arrow-repeat bi-spin"></i> 处理中...';
+                
+                const response = await fetch('/post/{{ post.id }}/choose_faction/anti', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+                
+                if (response.ok) {
+                    // 重新加载页面以显示更新后的UI
+                    location.reload();
+                } else {
+                    const errorText = await response.text();
+                    alert('加入阵营失败: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('请求失败');
+            } finally {
+                antiFactionBtn.disabled = false;
+                antiFactionBtn.innerHTML = '加入反方阵营';
+            }
+        });
+    }
+}
+
+// 模式切换功能初始化
+function initModeSwitching() {
+    // 评论显示模式切换
+    const modeButtons = document.querySelectorAll('[data-mode]');
+    const modeContainers = {
+        default: document.getElementById('default-mode'),
+        columns: document.getElementById('columns-mode'),
+        timeline: document.getElementById('timeline-mode')
+    };
+
+    // 检查本地存储中是否有保存的模式
+    const savedMode = localStorage.getItem('commentMode_{{ post.id }}') || 'default';
+    
+    // 设置初始模式
+    modeButtons.forEach(button => {
+        button.classList.remove('active');
+        if (button.dataset.mode === savedMode) {
+            button.classList.add('active');
+        }
+    });
+    
+    Object.values(modeContainers).forEach(container => {
+        if (container) {
+            container.classList.add('d-none');
+        }
+    });
+    
+    if (modeContainers[savedMode]) {
+        modeContainers[savedMode].classList.remove('d-none');
+        
+        // 初始化分栏模式的排序按钮状态
+        if (savedMode === 'columns') {
+            initSortButtons();
+        }
+        
+        // 初始化时间轴
+        if (savedMode === 'timeline') {
+            sortTimeline('desc');
+        }
+    }
+
+    modeButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // 更新按钮状态
+            modeButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 切换显示模式
+            Object.values(modeContainers).forEach(container => {
+                if (container) {
+                    container.classList.add('d-none');
+                }
+            });
+            
+            const targetMode = this.dataset.mode;
+            if (modeContainers[targetMode]) {
+                modeContainers[targetMode].classList.remove('d-none');
+                
+                // 初始化分栏模式的排序按钮状态
+                if (targetMode === 'columns') {
+                    initSortButtons();
+                }
+                
+                // 初始化时间轴
+                if (targetMode === 'timeline') {
+                    sortTimeline('desc');
+                }
+            }
+            
+            // 保存选择的模式到本地存储
+            localStorage.setItem('commentMode_{{ post.id }}', targetMode);
+            
+            e.preventDefault();
+        });
+    });
+}
+
+// 评论排序功能初始化
+function initCommentSorting() {
+    // 排序按钮点击事件（分栏模式）
+    document.querySelectorAll('.sort-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const columnId = this.dataset.column;
+            const sortBy = this.dataset.sort;
+            let order = this.dataset.order;
+            
+            // 如果已经是当前排序方式，切换排序方向
+            const container = document.getElementById(`${columnId}-comments-column`);
+            if (container.dataset.sort === sortBy) {
+                order = container.dataset.order === 'asc' ? 'desc' : 'asc';
+                this.dataset.order = order;
+            }
+            
+            // 更新按钮状态
+            document.querySelectorAll(`.sort-btn[data-column="${columnId}"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // 执行排序
+            sortComments(columnId, sortBy, order);
+        });
+    });
+
+    // 排序按钮点击事件（默认模式）
+    document.querySelectorAll('.sort-btn-default').forEach(button => {
+        button.addEventListener('click', function() {
+            const target = this.dataset.target;
+            const sortBy = this.dataset.sort;
+            let order = this.dataset.order;
+            
+            // 如果已经是当前排序方式，切换排序方向
+            const container = document.getElementById(`${target}-comments-default`);
+            if (container.dataset.sort === sortBy) {
+                order = container.dataset.order === 'asc' ? 'desc' : 'asc';
+                this.dataset.order = order;
+            }
+            
+            // 更新按钮状态
+            document.querySelectorAll(`.sort-btn-default[data-target="${target}"]`).forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // 执行排序
+            sortCommentsDefault(target, sortBy, order);
+        });
+    });
+
+    // 默认模式的正反方切换
+    document.querySelectorAll('.faction-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            // 更新按钮状态
+            document.querySelectorAll('.faction-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // 切换正反方评论显示
+            document.getElementById('pro-comments-default').classList.toggle('d-none', this.dataset.faction !== 'pro');
+            document.getElementById('anti-comments-default').classList.toggle('d-none', this.dataset.faction !== 'anti');
+        });
+    });
+
+    // 时间轴排序按钮点击事件
+    document.querySelectorAll('.timeline-sort-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // 更新按钮状态
+            document.querySelectorAll('.timeline-sort-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // 执行排序
+            sortTimeline(this.dataset.order);
+        });
+    });
+}
+
+// 评论排序功能
+function sortComments(columnId, sortBy, order) {
+    const container = document.getElementById(`${columnId}-comments-column`);
+    if (!container) return;
+    
+    const comments = Array.from(container.children).filter(el => 
+        el.classList.contains('comment') || el.classList.contains('collapsed-view'));
+    
+    comments.sort((a, b) => {
+        let valueA, valueB;
+        
+        // 获取实际的评论元素（可能是折叠视图或直接的评论）
+        let elA, elB;
+        
+        if (a.classList.contains('collapsed-view')) {
+            const commentIdA = a.querySelector('.expand-btn').dataset.commentId;
+            elA = document.getElementById(`comment-${commentIdA}`);
+        } else {
+            elA = a;
+        }
+        
+        if (b.classList.contains('collapsed-view')) {
+            const commentIdB = b.querySelector('.expand-btn').dataset.commentId;
+            elB = document.getElementById(`comment-${commentIdB}`);
+        } else {
+            elB = b;
+        }
+        
+        if (sortBy === 'time') {
+            // 假设每个评论元素都有data-created-at属性存储时间戳
+            valueA = new Date(elA.dataset.createdAt).getTime();
+            valueB = new Date(elB.dataset.createdAt).getTime();
+        } else if (sortBy === 'likes') {
+            // 从点赞数badge中获取数值
+            const likesA = elA.querySelector('.badge')?.textContent || 0;
+            const likesB = elB.querySelector('.badge')?.textContent || 0;
+            valueA = parseInt(likesA);
+            valueB = parseInt(likesB);
+        }
+        
+        return order === 'asc' ? valueA - valueB : valueB - valueA;
+    });
+    
+    // 清空容器并重新添加排序后的评论
+    container.innerHTML = '';
+    comments.forEach(comment => container.appendChild(comment));
+    
+    // 更新容器的排序状态
+    container.dataset.sort = sortBy;
+    container.dataset.order = order;
+}
+
+// 默认模式评论排序功能
+function sortCommentsDefault(target, sortBy, order) {
+    const container = document.getElementById(`${target}-comments-default`);
+    if (!container) return;
+    
+    const comments = Array.from(container.children).filter(el => 
+        el.classList.contains('comment') || el.classList.contains('collapsed-view'));
+    
+    comments.sort((a, b) => {
+        let valueA, valueB;
+        
+        // 获取实际的评论元素（可能是折叠视图或直接的评论）
+        let elA, elB;
+        
+        if (a.classList.contains('collapsed-view')) {
+            const commentIdA = a.querySelector('.expand-btn').dataset.commentId;
+            elA = document.getElementById(`comment-${commentIdA}`);
+        } else {
+            elA = a;
+        }
+        
+        if (b.classList.contains('collapsed-view')) {
+            const commentIdB = b.querySelector('.expand-btn').dataset.commentId;
+            elB = document.getElementById(`comment-${commentIdB}`);
+        } else {
+            elB = b;
+        }
+        
+        if (sortBy === 'time') {
+            // 假设每个评论元素都有data-created-at属性存储时间戳
+            valueA = new Date(elA.dataset.createdAt).getTime();
+            valueB = new Date(elB.dataset.createdAt).getTime();
+        } else if (sortBy === 'likes') {
+            // 从点赞数badge中获取数值
+            const likesA = elA.querySelector('.badge')?.textContent || 0;
+            const likesB = elB.querySelector('.badge')?.textContent || 0;
+            valueA = parseInt(likesA);
+            valueB = parseInt(likesB);
+        }
+        
+        return order === 'asc' ? valueA - valueB : valueB - valueA;
+    });
+    
+    // 清空容器并重新添加排序后的评论
+    container.innerHTML = '';
+    comments.forEach(comment => container.appendChild(comment));
+    
+    // 更新容器的排序状态
+    container.dataset.sort = sortBy;
+    container.dataset.order = order;
+}
+
+// 初始化排序按钮状态
+function initSortButtons() {
+    document.querySelectorAll('.sort-btn').forEach(button => {
+        const columnId = button.dataset.column;
+        const container = document.getElementById(`${columnId}-comments-column`);
+        
+        if (button.dataset.sort === container.dataset.sort && 
+            button.dataset.order === container.dataset.order) {
+            button.classList.add('active');
+        }
+    });
+    
+    // 初始化默认模式排序按钮状态
+    document.querySelectorAll('.sort-btn-default').forEach(button => {
+        const target = button.dataset.target;
+        const container = document.getElementById(`${target}-comments-default`);
+        
+        if (button.dataset.sort === container.dataset.sort && 
+            button.dataset.order === container.dataset.order) {
+            button.classList.add('active');
+        }
+    });
+}
+
+// 时间轴排序功能
+function sortTimeline(order) {
+    const container = document.querySelector('.timeline-container');
+    const timelineLine = document.querySelector('.timeline-line');
+    const items = Array.from(document.querySelectorAll('.timeline-item'))
+        .filter(item => !item.classList.contains('timeline-center'));
+    
+    // 计算所有评论的实际高度总和
+    let totalHeight = 0;
+    const itemData = items.map(item => {
+        const height = item.offsetHeight || 150;
+        totalHeight += height;
+        return {
+            item,
+            time: new Date(item.dataset.createdAt).getTime(),
+            height: height,
+            faction: item.classList.contains('timeline-left') ? 'pro' : 'anti'
+        };
+    });
+    
+    const containerPadding = 40;
+    const baseSpacing = 40; // 固定间距
+    
+    if (items.length === 0) {
+        container.style.height = '500px';
+        if (timelineLine) {
+            timelineLine.style.height = '100%';
+        }
+        return;
+    }
+    
+    // 按时间排序
+    const isAsc = order === 'asc';
+    itemData.sort((a, b) => isAsc ? a.time - b.time : b.time - a.time);
+    
+    // 设置第一个元素的位置
+    itemData[0].top = containerPadding;
+    
+    // 按固定间距排列后续元素
+    for (let i = 1; i < itemData.length; i++) {
+        const curr = itemData[i];
+        const prev = itemData[i-1];
+        
+        // 使用固定间距排列卡片
+        curr.top = prev.top + prev.height + baseSpacing;
+    }
+    
+    // 应用最终位置
+    itemData.forEach(data => {
+        data.item.style.top = `${data.top}px`;
+        container.appendChild(data.item);
+        data.item.classList.add('visible');
+    });
+
+    // 计算并设置容器高度
+    const lastItem = itemData[itemData.length - 1];
+    const containerHeight = lastItem.top + lastItem.height + containerPadding;
+    container.style.height = `${Math.max(500, containerHeight)}px`;
+    
+    // 调整中轴线长度以匹配内容
+    if (timelineLine) {
+        timelineLine.style.height = `${containerHeight - 2 * containerPadding}px`;
+        timelineLine.style.top = `${containerPadding}px`;
+    }
+}
+
+// 交互功能初始化
+function initInteractions() {
+    // 处理所有交互表单
+    document.querySelectorAll('.interaction-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const button = form.querySelector('button[type="submit"]');
+            const badge = button.querySelector('.badge');
+            const originalText = button.innerHTML;
+            
+            // 显示加载状态
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-arrow-repeat bi-spin"></i> 处理中...';
+            
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: new URLSearchParams(new FormData(form))
+                });
+                
+                // 读取并存储响应内容
+                const responseText = await response.text();
+                
+                if (!response.ok) {
+                    console.error('Form submission failed:', responseText);
+                    const contentType = response.headers.get('content-type');
+                    let error = {message: '操作失败'};
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        try {
+                            error = JSON.parse(responseText);
+                        } catch {
+                            // 忽略JSON解析错误
+                        }
+                    } else if (responseText.startsWith('<!DOCTYPE')) {
+                        error.message = '服务器错误，请稍后重试';
+                    } else {
+                        error.message = responseText || error.message;
+                    }
+                    throw new Error(error.message);
+                }
+
+                let data;
+                try {
+                    if (!responseText.trim()) {
+                        throw new Error('服务器返回了空响应');
+                    }
+                    data = JSON.parse(responseText);
+                    
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('服务器返回了无效的数据结构');
+                    }
+                } catch (error) {
+                    console.error('响应处理错误:', {
+                        error: error,
+                        responseText: responseText,
+                        status: response.status,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
+                    throw new Error(`服务器响应处理失败: ${error.message}`);
+                }
+                
+                // 更新当前按钮状态和计数
+                if (button) {
+                    updateButtonState(button, data);
+                }
+                
+                // 获取目标类型和ID
+                const interactionType = form.getAttribute('data-type'); // 'post' 或 'comment'
+                const interactionAction = form.getAttribute('data-action'); // 'like', 'dislike', 'favorite'
+                
+                // 更新页面上所有相同目标和动作的按钮
+                let targetId;
+                if (interactionType === 'post') {
+                    targetId = "{{ post.id }}";
+                } else {
+                    // 从表单action中提取评论ID
+                    const urlParts = form.action.split('/');
+                    targetId = urlParts[2]; // URL格式: /comment/[id]/[action]
+                }
+                
+                // 查找并更新所有相同目标的按钮
+                document.querySelectorAll(`.interaction-form[data-type="${interactionType}"][data-action="${interactionAction}"]`).forEach(otherForm => {
+                    // 验证是否是相同的目标
+                    let otherTargetId;
+                    if (interactionType === 'post') {
+                        otherTargetId = "{{ post.id }}";
+                    } else {
+                        const otherUrlParts = otherForm.action.split('/');
+                        otherTargetId = otherUrlParts[2];
+                    }
+                    
+                    // 如果是相同目标，则更新按钮
+                    if (String(otherTargetId) === String(targetId)) {
+                        const otherButton = otherForm.querySelector('button[type="submit"]');
+                        if (otherButton) {
+                            updateButtonState(otherButton, data);
+                        }
+                    }
+                });
+                
+                // 辅助函数：更新按钮状态
+                function updateButtonState(buttonElement, data) {
+                    // 更新按钮样式
+                    buttonElement.classList.remove('btn-primary', 'btn-purple', 'btn-warning', 'btn-outline-primary', 'btn-outline-purple', 'btn-outline-warning');
+                    
+                    switch (data.action) {
+                        case 'like':
+                            buttonElement.classList.add(data.active ? 'btn-primary' : 'btn-outline-primary');
+                            break;
+                        case 'dislike':
+                            buttonElement.classList.add(data.active ? 'btn-purple' : 'btn-outline-purple');
+                            break;
+                        case 'favorite':
+                            buttonElement.classList.add(data.active ? 'btn-warning' : 'btn-outline-warning');
+                            break;
+                    }
+                    
+                    // 更新计数显示
+                    const badge = buttonElement.querySelector('.badge');
+                    if (badge) {
+                        badge.textContent = data.count;
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert(error.message || '操作失败，请稍后重试');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        });
+    });
+}
+
+// 初始化评论折叠功能
+function initCommentCollapse() {
+    // 为所有折叠视图添加展开按钮事件监听器
+    document.querySelectorAll('.expand-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            const collapsedView = this.closest('.collapsed-view');
+            
+            if (commentElement) {
+                commentElement.classList.remove('d-none');
+                commentElement.classList.add('low-quality-comment');
+                if (collapsedView) {
+                    collapsedView.classList.add('d-none');
+                }
+                
+                // 为展开的评论添加双击事件以重新折叠
+                commentElement.addEventListener('dblclick', function() {
+                    commentElement.classList.add('d-none');
+                    commentElement.classList.remove('low-quality-comment');
+                    if (collapsedView) {
+                        collapsedView.classList.remove('d-none');
+                    }
+                });
+            }
+        });
+    });
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="card forum-card mb-4">
+    <div class="card-body">
+        <h2 class="mb-3">{{ post.title }}</h2>
+        <div class="d-flex align-items-center mb-3">
+            <a href="/user/{{ post.author.username }}">
+                <img src="{{ post.author.avatar }}" class="user-avatar me-2" alt="作者头像">
+            </a>
+            <div>
+                <a href="/user/{{ post.author.username }}" class="text-decoration-none">
+                    {{ post.author.username }}
+                </a>
+                <div class="text-muted small">
+                    {{ naturaltime(post.created_at) }}
+                    {% if post.updated_at > post.created_at %}
+                        (编辑于 {{ naturaltime(post.updated_at) }})
+                    {% endif %}
+                    · 浏览 {{ post.view_count }} 次
+                </div>
+            </div>
+        </div>
+        
+        {% if post.image_path %}
+        <div class="mb-4">
+            <a href="{{ post.image_path }}" target="_blank">
+                <img src="{{ post.thumbnail_path or post.image_path }}" class="img-fluid rounded" alt="帖子图片">
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="post-content mb-4">
+            {{ post.content | safe }}
+        </div>
+        
+        <div class="tags mb-3">
+            {% for tag in post.tags.split(',') if tag %}
+                <a href="/tag/{{ tag }}" class="badge bg-primary text-decoration-none me-1">{{ tag }}</a>
+            {% endfor %}
+        </div>
+
+        <div class="interactions d-flex justify-content-start gap-3 mb-3">
+            {% if current_user.is_authenticated %}
+            <form method="POST" action="{{ url_for('post_interaction', post_id=post.id, action='like') }}" class="interaction-form" data-action="like" data-type="post">
+                <button type="submit" class="btn btn-sm {% if current_user in post.user_interactions|selectattr('liked')|map(attribute='user')|list %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-hand-thumbs-up"></i> 支持 <span class="badge bg-light text-dark">{{ post.like_count }}</span>
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('post_interaction', post_id=post.id, action='dislike') }}" class="interaction-form" data-action="dislike" data-type="post">
+                <button type="submit" class="btn btn-sm {% if current_user in post.user_interactions|selectattr('disliked')|map(attribute='user')|list %}btn-purple{% else %}btn-outline-purple{% endif %}">
+                    <i class="bi bi-hand-thumbs-down"></i> 反对 <span class="badge bg-light text-dark">{{ post.dislike_count }}</span>
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('post_interaction', post_id=post.id, action='favorite') }}" class="interaction-form" data-action="favorite" data-type="post">
+                <button type="submit" class="btn btn-sm {% if current_user in post.user_interactions|selectattr('favorited')|map(attribute='user')|list %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+                    <i class="bi bi-star"></i> 收藏 <span class="badge bg-light text-dark">{{ post.favorite_count }}</span>
+                </button>
+            </form>
+            {% else %}
+            <button class="btn btn-sm btn-outline-secondary" disabled>
+                <i class="bi bi-hand-thumbs-up"></i> 支持 <span class="badge bg-light text-dark">{{ post.like_count }}</span>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" disabled>
+                <i class="bi bi-hand-thumbs-down"></i> 反对 <span class="badge bg-light text-dark">{{ post.dislike_count }}</span>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" disabled>
+                <i class="bi bi-star"></i> 收藏 <span class="badge bg-light text-dark">{{ post.favorite_count }}</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if current_user.is_authenticated %}
+
+<div class="mb-3">
+    {% if not user_faction %}
+        <div class="d-flex gap-3">
+            <button type="button" class="btn btn-primary" id="show-neutral-form-btn">发表中立评论</button>
+            <button type="button" class="btn btn-success" id="pro-faction-btn">加入正方阵营</button>
+            <button type="button" class="btn btn-danger" id="anti-faction-btn">加入反方阵营</button>
+        </div>
+    {% else %}
+        <div class="d-flex gap-3">
+            <button type="button" class="btn btn-outline-secondary" id="show-neutral-form-btn">发表中立评论</button>
+            <button type="button" class="btn {% if user_faction.faction == 'pro' %}btn-success{% else %}btn-danger{% endif %}" id="show-argument-form-btn" data-faction="{{ user_faction.faction }}">
+                发表{{ '正方' if user_faction.faction == 'pro' else '反方' }}观点
+            </button>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 中立评论编辑框 -->
+<div id="neutral-form" class="d-none">
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">评论内容 *</label>
+            <textarea class="form-control" name="content" rows="3" required placeholder="请输入您的评论..."></textarea>
+            
+            <!-- 多媒体上传按钮 -->
+            <div class="btn-group mt-2" role="group">
+                <input type="file" id="image-input" accept="image/*" class="d-none">
+                <input type="file" id="video-input" accept="video/*" class="d-none">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">提交评论</button>
+    </form>
+</div>
+
+<!-- 论点论证编辑框 -->
+<div id="argument-form" class="d-none">
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">论点 *</label>
+            <textarea class="form-control" name="claim" rows="2" required placeholder="请输入您的论点..."></textarea>
+            <div class="form-text">论点只能包含文字和LaTeX公式</div>
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="insert-claim-latex-btn">
+                    <i class="bi bi-fonts"></i> 插入LaTeX公式
+                </button>
+            </div>
+            
+            <!-- 论点LaTeX编辑器 -->
+            <div id="claim-latex-editor" class="d-none mt-2">
+                <div class="card">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span>插入LaTeX公式</span>
+                        <button type="button" class="btn-close" id="cancel-claim-latex"></button>
+                    </div>
+                    <div class="card-body p-2">
+                        <textarea id="claim-latex-code" class="form-control" rows="3" placeholder="在此输入LaTeX公式代码"></textarea>
+                        <div class="mt-2 d-flex justify-content-end">
+                            <button type="button" class="btn btn-sm btn-primary" id="insert-claim-latex">插入公式</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">论证 *</label>
+            <textarea class="form-control" name="argument" rows="4" required placeholder="请输入您的论证..."></textarea>
+            <div class="form-text">论证可以包含文字、图片、视频和LaTeX公式</div>
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="insert-argument-image-btn">
+                    <i class="bi bi-image"></i> 插入图片
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="insert-argument-video-btn">
+                    <i class="bi bi-camera-video"></i> 插入视频
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="insert-argument-latex-btn">
+                    <i class="bi bi-fonts"></i> 插入LaTeX公式
+                </button>
+                
+                <input type="file" id="argument-image-input" accept="image/*" class="d-none">
+                <input type="file" id="argument-video-input" accept="video/*" class="d-none">
+            </div>
+            
+            <!-- 论证LaTeX编辑器 -->
+            <div id="argument-latex-editor" class="d-none mt-2">
+                <div class="card">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span>插入LaTeX公式</span>
+                        <button type="button" class="btn-close" id="cancel-argument-latex"></button>
+                    </div>
+                    <div class="card-body p-2">
+                        <textarea id="argument-latex-code" class="form-control" rows="3" placeholder="在此输入LaTeX公式代码"></textarea>
+                        <div class="mt-2 d-flex justify-content-end">
+                            <button type="button" class="btn btn-sm btn-primary" id="insert-argument-latex">插入公式</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="submit" name="faction" value="{{ user_faction.faction }}" class="btn {% if user_faction.faction == 'pro' %}btn-success{% else %}btn-danger{% endif %}">提交{{ '正方' if user_faction.faction == 'pro' else '反方' }}观点</button>
+    </form>
+</div>
+
+{% endif %}
+
+<div class="card forum-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">评论统计</h5>
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary active" data-mode="default">默认</button>
+            <button type="button" class="btn btn-outline-primary" data-mode="columns">分栏</button>
+            <button type="button" class="btn btn-outline-primary" data-mode="timeline">时间轴</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-4">
+            <span class="badge bg-success">正方: {{ comments|selectattr('faction', 'equalto', 'pro')|list|length }}</span>
+            <span class="badge bg-danger">反方: {{ comments|selectattr('faction', 'equalto', 'anti')|list|length }}</span>
+            <span class="badge bg-secondary">中立: {{ comments|selectattr('faction', 'equalto', 'neutral')|list|length }}</span>
+        </div>
+
+        <!-- 分栏模式 -->
+        <div id="columns-mode" class="d-none">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-center text-success mb-0">正方观点</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="pro" data-sort="time" data-order="desc">
+                                <i class="bi bi-clock"></i> 最新
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="pro" data-sort="likes" data-order="desc">
+                                <i class="bi bi-hand-thumbs-up"></i> 热门
+                            </button>
+                        </div>
+                    </div>
+                    <div id="pro-comments-column" data-sort="time" data-order="desc">
+                        {% for comment in comments if comment.faction == 'pro' %}
+                            {% if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                                <div class="collapsed-view">
+                                    <p class="mb-1">该观点因低质量已被折叠</p>
+                                    <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                </div>
+                                <div id="comment-{{ comment.id }}" class="d-none">
+                                    {% include 'comment_item.html' %}
+                                </div>
+                            {% else %}
+                                {% include 'comment_item.html' %}
+                            {% endif %}
+                        {% else %}
+                            <div class="text-muted">暂无正方观点</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-center text-danger mb-0">反方观点</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="anti" data-sort="time" data-order="desc">
+                                <i class="bi bi-clock"></i> 最新
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="anti" data-sort="likes" data-order="desc">
+                                <i class="bi bi-hand-thumbs-up"></i> 热门
+                            </button>
+                        </div>
+                    </div>
+                    <div id="anti-comments-column" data-sort="time" data-order="desc">
+                        {% for comment in comments if comment.faction == 'anti' %}
+                            {% if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                                <div class="collapsed-view">
+                                    <p class="mb-1">该观点因低质量已被折叠</p>
+                                    <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                </div>
+                                <div id="comment-{{ comment.id }}" class="d-none">
+                                    {% include 'comment_item.html' %}
+                                </div>
+                            {% else %}
+                                {% include 'comment_item.html' %}
+                            {% endif %}
+                        {% else %}
+                            <div class="text-muted">暂无反方观点</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-center text-secondary mb-0">中立评论</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="neutral" data-sort="time" data-order="desc">
+                                <i class="bi bi-clock"></i> 最新
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary sort-btn" data-column="neutral" data-sort="likes" data-order="desc">
+                                <i class="bi bi-hand-thumbs-up"></i> 热门
+                            </button>
+                        </div>
+                    </div>
+                    <div id="neutral-comments-column" data-sort="time" data-order="desc">
+                        {% for comment in comments if comment.faction == 'neutral' %}
+                            {% if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                                <div class="collapsed-view">
+                                    <p class="mb-1">该评论因低质量已被折叠</p>
+                                    <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                </div>
+                                <div id="comment-{{ comment.id }}" class="d-none">
+                                    {% include 'comment_item.html' %}
+                                </div>
+                            {% else %}
+                                {% include 'comment_item.html' %}
+                            {% endif %}
+                        {% else %}
+                            <div class="text-muted">暂无中立评论</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 时间轴模式 -->
+        <div id="timeline-mode" class="d-none">
+            <div class="d-flex justify-content-center mb-3">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary timeline-sort-btn active" data-order="desc">
+                        <i class="bi bi-sort-down"></i> 最新在前
+                    </button>
+                    <button type="button" class="btn btn-outline-primary timeline-sort-btn" data-order="asc">
+                        <i class="bi bi-sort-up"></i> 最早在前
+                    </button>
+                </div>
+            </div>
+            <div class="timeline-container">
+                <div class="timeline-line"></div>
+                {% for comment in comments if comment.faction != 'neutral' %}
+                    {% if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                        <div class="timeline-item {% if comment.faction == 'pro' %}timeline-left{% else %}timeline-right{% endif %}" 
+                             data-faction="{{ comment.faction }}" 
+                             data-created-at="{{ comment.created_at.isoformat() }}">
+                            <div class="timeline-content">
+                                <div class="collapsed-view">
+                                    <p class="mb-1">该观点因低质量已被折叠</p>
+                                    <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                </div>
+                                <div id="comment-{{ comment.id }}" class="d-none">
+                                    {% include 'comment_item.html' %}
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="timeline-item {% if comment.faction == 'pro' %}timeline-left{% else %}timeline-right{% endif %}" 
+                             data-faction="{{ comment.faction }}" 
+                             data-created-at="{{ comment.created_at.isoformat() }}">
+                            <div class="timeline-content">
+                                {% include 'comment_item.html' %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 默认模式 -->
+        <div id="default-mode">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-success faction-toggle active" data-faction="pro">正方观点</button>
+                            <button type="button" class="btn btn-outline-danger faction-toggle" data-faction="anti">反方观点</button>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default active" data-target="pro" data-sort="time" data-order="desc">
+                                <i class="bi bi-clock"></i> 最新
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="pro" data-sort="likes" data-order="desc">
+                                <i class="bi bi-hand-thumbs-up"></i> 热门
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="pro-comments-default" class="faction-comments" data-sort="time" data-order="desc">
+                            {% set pro_comments = comments|selectattr('faction', 'equalto', 'pro')|list %}
+                            {% if pro_comments %}
+                                {% for comment in pro_comments %}
+                                    {%if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                                        <div class="collapsed-view">
+                                            <p class="mb-1">该观点因低质量已被折叠</p>
+                                            <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                        </div>
+                                        <div id="comment-{{ comment.id }}" class="d-none">
+                                            {% include 'comment_item.html' %}
+                                        </div>
+                                    {% else %}
+                                        {% include 'comment_item.html' %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">暂无正方观点</div>
+                            {% endif %}
+                        </div>
+                        <div id="anti-comments-default" class="faction-comments d-none" data-sort="time" data-order="desc">
+                            {% set anti_comments = comments|selectattr('faction', 'equalto', 'anti')|list %}
+                            {% if anti_comments %}
+                                {% for comment in anti_comments %}
+                                    {% if (comment.dislike_count >= 100 and comment.like_count == 0) or (comment.like_count > 0 and comment.dislike_count >= comment.like_count * 10) %}
+                                        <div class="collapsed-view">
+                                            <p class="mb-1">该观点因低质量已被折叠</p>
+                                            <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                        </div>
+                                        <div id="comment-{{ comment.id }}" class="d-none">
+                                            {% include 'comment_item.html' %}
+                                        </div>
+                                    {% else %}
+                                        {% include 'comment_item.html' %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">暂无反方观点</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5>中立评论</h5>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="neutral" data-sort="time" data-order="desc">
+                                <i class="bi bi-clock"></i> 最新
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="neutral" data-sort="likes" data-order="desc">
+                                <i class="bi bi-hand-thumbs-up"></i> 热门
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="neutral-comments-default" class="faction-comments" data-sort="time" data-order="desc">
+                            {% set neutral_comments = comments|selectattr('faction', 'equalto', 'neutral')|list %}
+                            {% if neutral_comments %}
+                                {% for comment in neutral_comments %}
+                                    {% if comment.dislike_count >= 100 and (comment.like_count == 0 or comment.dislike_count >= comment.like_count * 10) %}
+                                        <div class="collapsed-view">
+                                            <p class="mb-1">该评论因低质量已被折叠</p>
+                                            <span class="expand-btn" data-comment-id="{{ comment.id }}">展开查看</span>
+                                        </div>
+                                        <div id="comment-{{ comment.id }}" class="d-none">
+                                            {% include 'comment_item.html' %}
+                                        </div>
+                                    {% else %}
+                                        {% include 'comment_item.html' %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">暂无中立评论</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+</file>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card forum-card">
+        <div class="card-header bg-white">
+            <h4>{{ post.title }}的点赞记录</h4>
+            <a href="{{ url_for('post', post_id=post.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回帖子
+            </a>
+        </div>
+        <div class="card-body">
+            {% if likes %}
+                <div class="list-group">
+                    {% for interaction, user in likes %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ user.avatar }}" class="rounded-circle me-3" width="50" height="50" alt="{{ user.username }}的头像">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('user', username=user.username) }}" class="text-decoration-none">
+                                        {{ user.username }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    {{ naturaltime(interaction.interacted_at) }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">暂无点赞记录</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

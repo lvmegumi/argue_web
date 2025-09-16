@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    {% extends "base.html" %}
+    
+    {% block content %}
+    <div class="container-fluid px-4">
+        <div class="row g-4">
+            <!-- 主内容区 -->
+            <div class="col-lg-12">
+                <!-- 用户信息卡片 -->
+                <div class="card forum-card">
+                    <div class="card-header bg-white">
+                        <h4 class="m-0">个人资料</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" enctype="multipart/form-data" action="/user/{{ user.username }}/update">
+                            <div class="row align-items-center">
+                                <!-- 头像区域 -->
+                                <div class="col-md-2 text-center">
+                                    <img id="avatar-preview" src="{{ user.avatar }}" 
+                                         class="rounded-circle mb-3" width="120" height="120" 
+                                         alt="{{ user.username }}的头像">
+                                    <div class="d-grid">
+                                        <input type="file" id="avatar-upload" name="avatar" 
+                                               class="form-control form-control-sm" 
+                                               accept="image/*" style="display: none;">
+                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                onclick="document.getElementById('avatar-upload').click()">
+                                            <i class="bi bi-upload"></i> 更换头像
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- 用户信息 -->
+                                <div class="col-md-10">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">用户名</label>
+                                            <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">注册时间</label>
+                                            <input type="text" class="form-control" value="{{ user.join_date }}" readonly>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 个人简介 -->
+                                    <div class="mb-3">
+                                        <label class="form-label">个人简介</label>
+                                        <textarea class="form-control" name="bio" rows="3" 
+                                                  placeholder="介绍一下你自己...">{{ user.bio or '' }}</textarea>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-save"></i> 保存更改
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 收到的点赞 -->
+                <div class="card forum-card mt-4">
+                    <div class="card-header bg-white">
+                        <h4 class="m-0"><i class="bi bi-hand-thumbs-up"></i> 收到的点赞</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="bi bi-file-earmark-text"></i> 帖子点赞</h5>
+                            <a href="/user/{{ user.username }}/post_likes" class="btn btn-sm btn-outline-primary">
+                                查看全部 <span class="badge bg-primary ms-1">{{ post_likes|length if post_likes else 0 }}</span>
+                            </a>
+                        </div>
+                        {% if not post_likes %}
+                            <div class="text-muted mb-4">暂无帖子点赞</div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="bi bi-chat-left-text"></i> 评论点赞</h5>
+                            <a href="/user/{{ user.username }}/comment_likes" class="btn btn-sm btn-outline-primary">
+                                查看全部 <span class="badge bg-primary ms-1">{{ comment_likes|length if comment_likes else 0 }}</span>
+                            </a>
+                        </div>
+                        {% if not comment_likes %}
+                            <div class="text-muted">暂无评论点赞</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 发帖记录 -->
+                <div class="card forum-card mt-4">
+                    <div class="card-header bg-white">
+                        <h4 class="m-0"><i class="bi bi-file-earmark-text"></i> 发帖记录</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if posts %}
+                            <div class="row row-cols-1 row-cols-md-2 g-4">
+                                {% for post in posts %}
+                                <div class="col">
+                                    <div class="post-item">
+                                        <h5>
+                                            <a href="/post/{{ post.id }}" class="text-decoration-none">{{ post.title }}</a>
+                                        </h5>
+                                        <div class="text-muted small">
+                                            <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                            {% if post.tags %}
+                                            <span class="ms-3">
+                                                <i class="bi bi-tags"></i> {{ post.tags }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-3">暂无发帖记录</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 浏览历史 -->
+                <div class="card forum-card mt-4">
+                    <div class="card-header bg-white">
+                        <h4 class="m-0"><i class="bi bi-clock-history"></i> 浏览历史</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if history %}
+                            <div class="row row-cols-1 row-cols-md-3 g-4">
+                                {% for item in history %}
+                                <div class="col">
+                                    <div class="history-item">
+                                        <a href="{{ item.url }}" class="text-decoration-none">{{ item.title }}</a>
+                                        <div class="text-muted small mt-2">{{ item.time }}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="text-center mt-4">
+                                <a href="/user/{{ user.username }}/history" class="btn btn-outline-primary">
+                                    查看全部历史记录
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-4">暂无浏览记录</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 头像上传预览
+        document.getElementById('avatar-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('avatar-preview').src = event.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+    {% endblock %}
+</body>
+</html>

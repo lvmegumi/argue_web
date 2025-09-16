@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="section-header">Python相关帖子</h2>
+    <a href="/tags" class="btn btn-outline-primary btn-sm mb-3">返回标签列表</a>
+    
+    <div class="forum-card">
+        <div class="card-body">
+            <h3><a href="/post/1" class="text-decoration-none">Python Flask高级编程技巧与实践应用</a></h3>
+            <div class="text-muted mb-2">
+                作者: <a href="/user/admin">admin</a> | 发布时间: 2023-09-10
+            </div>
+            <p>这里是帖子摘要内容...</p>
+            <div>
+                <a href="/tag/Python" class="badge-tag">Python</a>
+                <a href="/tag/Flask" class="badge-tag">Flask</a>
+                <a href="/tag/Web开发" class="badge-tag">Web开发</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+<div class="comment mb-3 pb-3 border-bottom" data-created-at="{{ comment.created_at.isoformat() }}">
+    <div class="d-flex align-items-center mb-2">
+        <a href="/user/{{ comment.author.username }}">
+            <img src="{{ comment.author.avatar }}" class="user-avatar me-2" alt="用户头像">
+        </a>
+        <div>
+                <a href="/user/{{ comment.author.username }}" class="text-decoration-none {% if comment.faction == 'pro' %}text-success{% elif comment.faction == 'anti' %}text-danger{% else %}text-secondary{% endif %}">
+                    {{ comment.author.username }}
+                </a>
+            <div class="text-muted small">{{ naturaltime(comment.created_at) }}</div>
+        </div>
+    </div>
+    <div class="comment-content">
+        {% if comment.content.startswith('论点:') and '\n\n论证:' in comment.content %}
+            {# 处理论点论证格式的内容 #}
+            {% set parts = comment.content.split('\n\n论证: ') %}
+            {% set claim = parts[0] | replace('论点: ', '') %}
+            {% set argument = parts[1] if parts|length > 1 else '' %}
+            
+            <div class="claim-section">
+                <strong>论点：</strong>
+                <div class="claim-content mt-2">
+                    {{ claim | render_markdown_images | safe }}
+                </div>
+            </div>
+            
+            {% if argument %}
+            <div class="argument-section mt-3">
+                <strong>论证：</strong>
+                <div class="argument-content mt-2">
+                    {{ argument | render_markdown_images | safe }}
+                </div>
+            </div>
+            {% endif %}
+        {% elif comment.content.startswith('论点:') %}
+            {# 只有论点 #}
+            <div class="claim-section">
+                <strong>论点：</strong>
+                <div class="claim-content mt-2">
+                    {{ comment.content | replace('论点: ', '') | render_markdown_images | safe }}
+                </div>
+            </div>
+        {% elif comment.content.startswith('论证:') %}
+            {# 只有论证 #}
+            <div class="argument-section">
+                <strong>论证：</strong>
+                <div class="argument-content mt-2">
+                    {{ comment.content | replace('论证: ', '') | render_markdown_images | safe }}
+                </div>
+            </div>
+        {% else %}
+            {{ comment.content | render_markdown_images | safe }}
+        {% endif %}
+        
+        <style>
+            .comment-content img {
+                max-width: 100%;
+                height: auto;
+                border-radius: 8px;
+                margin: 10px 0;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .comment-content video {
+                max-width: 100%;
+                border-radius: 8px;
+                margin: 10px 0;
+            }
+            .comment-content iframe {
+                max-width: 100%;
+                margin: 10px 0;
+            }
+            .claim-section {
+                padding: 10px 15px;
+                background-color: #e9f7ef;
+                border-left: 4px solid #28a745;
+                border-radius: 4px;
+            }
+            .argument-section {
+                padding: 10px 15px;
+                background-color: #f8f9fa;
+                border-left: 4px solid #6c757d;
+                border-radius: 4px;
+            }
+            .latex-formula {
+                background-color: #f8f9fa;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 10px 0;
+                font-family: monospace;
+                overflow-x: auto;
+            }
+        </style>
+    </div>
+    <div class="comment-interactions mt-2">
+        {% if current_user.is_authenticated %}
+        <form method="POST" action="{{ url_for('comment_interaction', comment_id=comment.id, action='like') }}" class="d-inline interaction-form" data-action="like" data-type="comment">
+            <button type="submit" class="btn btn-sm {% if current_user in comment.user_interactions|selectattr('liked')|map(attribute='user')|list %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-hand-thumbs-up"></i> 支持 <span class="badge bg-light text-dark">{{ comment.like_count }}</span>
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('comment_interaction', comment_id=comment.id, action='dislike') }}" class="d-inline ms-2 interaction-form" data-action="dislike" data-type="comment">
+            <button type="submit" class="btn btn-sm {% if current_user in comment.user_interactions|selectattr('disliked')|map(attribute='user')|list %}btn-purple{% else %}btn-outline-purple{% endif %}">
+                <i class="bi bi-hand-thumbs-down"></i> 反对 <span class="badge bg-light text-dark">{{ comment.dislike_count }}</span>
+            </button>
+        </form>
+        {% else %}
+        <button class="btn btn-sm btn-outline-secondary" disabled>
+            <i class="bi bi-hand-thumbs-up"></i> 支持 <span class="badge bg-light text-dark">{{ comment.like_count }}</span>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" disabled>
+            <i class="bi bi-hand-thumbs-down"></i> 反对 <span class="badge bg-light text-dark">{{ comment.dislike_count }}</span>
+        </button>
+        {% endif %}
+    </div>
+</div>
+</file>

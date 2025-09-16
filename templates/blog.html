@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="section-header">技术板块</h2>
+    
+    <div class="card forum-card mb-4">
+        <div class="card-header bg-white">
+            <h3>前端开发</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h4><a href="/post/2" class="text-decoration-none">前端框架比较：React vs Vue vs Angular</a></h4>
+                <div class="text-muted small">作者: admin | 发布时间: 2023-09-09</div>
+            </div>
+            <p>讨论现代前端框架的特点和适用场景...</p>
+            <div>
+                <a href="/tag/前端" class="badge-tag">前端</a>
+                <a href="/tag/JavaScript" class="badge-tag">JavaScript</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card forum-card mb-4">
+        <div class="card-header bg-white">
+            <h3>后端开发</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h4><a href="/post/1" class="text-decoration-none">Python Flask高级编程技巧与实践应用</a></h4>
+                <div class="text-muted small">作者: admin | 发布时间: 2023-09-10</div>
+            </div>
+            <p>分享Flask框架的高级使用技巧...</p>
+            <div>
+                <a href="/tag/Python" class="badge-tag">Python</a>
+                <a href="/tag/Flask" class="badge-tag">Flask</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card forum-card">
+        <div class="card-header bg-white">
+            <h3>数据库</h3>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h4><a href="/post/3" class="text-decoration-none">数据库优化策略与最佳实践</a></h4>
+                <div class="text-muted small">作者: admin | 发布时间: 2023-09-08</div>
+            </div>
+            <p>探讨数据库性能优化的方法和技巧...</p>
+            <div>
+                <a href="/tag/数据库" class="badge-tag">数据库</a>
+                <a href="/tag/MySQL" class="badge-tag">MySQL</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

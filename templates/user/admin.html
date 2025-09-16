@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card forum-card mb-4">
+            <div class="card-body text-center">
+                <img src="/static/images/avatars/admin.jpg" class="rounded-circle mb-3" alt="用户头像" width="100" height="100">
+                <h2>admin</h2>
+                <p class="text-muted">注册时间: 2023年1月15日</p>
+                <div class="d-flex justify-content-center mb-2">
+                    <div class="px-3">
+                        <div class="fw-bold">128</div>
+                        <div class="text-muted">帖子</div>
+                    </div>
+                    <div class="px-3">
+                        <div class="fw-bold">524</div>
+                        <div class="text-muted">回复</div>
+                    </div>
+                    <div class="px-3">
+                        <div class="fw-bold">1.2k</div>
+                        <div class="text-muted">点赞</div>
+                    </div>
+                </div>
+                <a href="/user/admin/edit" class="btn btn-primary btn-sm"><i class="bi bi-pencil-square"></i> 编辑资料</a>
+            </div>
+        </div>
+
+        <h3 class="section-header">发布的帖子</h3>
+        
+        <div class="forum-card">
+            <div class="card-body">
+                <h4><a href="/post/1" class="text-decoration-none">Python Flask高级编程技巧与实践应用</a></h4>
+                <div class="text-muted mb-2">
+                    发布时间: 2023-09-10
+                </div>
+                <p>这里是帖子摘要内容...</p>
+                <div>
+                    <a href="/tag/Python" class="badge-tag">Python</a>
+                    <a href="/tag/Flask" class="badge-tag">Flask</a>
+                    <a href="/tag/Web开发" class="badge-tag">Web开发</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

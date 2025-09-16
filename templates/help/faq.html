@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="forum-card">
+    <div class="card-body">
+        <h1>常见问题解答</h1>
+        
+        <div class="mt-4">
+            <h3>账户相关</h3>
+            <div class="mb-3">
+                <h5>如何注册账户？</h5>
+                <p>点击右上角的"注册"按钮，填写邮箱、用户名和密码即可完成注册。</p>
+            </div>
+            <div class="mb-3">
+                <h5>忘记密码怎么办？</h5>
+                <p>在登录页面点击"忘记密码"，按照提示重置密码。</p>
+            </div>
+            
+            <h3>发帖相关</h3>
+            <div class="mb-3">
+                <h5>如何发布新帖子？</h5>
+                <p>登录后点击导航栏的"发帖"按钮，填写标题、内容和标签后提交。</p>
+            </div>
+            <div class="mb-3">
+                <h5>可以编辑已发布的帖子吗？</h5>
+                <p>可以，在帖子详情页点击"编辑"按钮即可修改内容。</p>
+            </div>
+            
+            <h3>浏览相关</h3>
+            <div class="mb-3">
+                <h5>如何搜索特定内容？</h3>
+                <p>使用顶部的搜索框，输入关键词后按回车或点击搜索图标。</p>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="/help" class="btn btn-outline-primary">返回帮助中心</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

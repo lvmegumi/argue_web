@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('tag-search');
+    const tagContainer = document.querySelector('.tags-container');
+    const originalTags = tagContainer.innerHTML;
+    
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        if (searchTerm === '') {
+            tagContainer.innerHTML = originalTags;
+            return;
+        }
+        
+        const tags = tagContainer.querySelectorAll('.badge-tag');
+        tags.forEach(tag => {
+            const tagName = tag.textContent.toLowerCase();
+            if (tagName.includes(searchTerm)) {
+                tag.style.display = 'inline-block';
+            } else {
+                tag.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <h2 class="section-header m-0">所有标签</h2>
+        <div class="d-flex align-items-center">
+            <div class="input-group input-group-sm me-3" style="width: 200px;">
+                <input type="text" id="tag-search" class="form-control" placeholder="搜索标签...">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <div class="btn-group">
+                <a href="{{ url_for('tags', sort='hot') }}" class="btn btn-sm btn-outline-primary {% if sort == 'hot' %}active{% endif %}">按热度</a>
+                <a href="{{ url_for('tags', sort='new') }}" class="btn btn-sm btn-outline-primary {% if sort == 'new' %}active{% endif %}">按最新</a>
+                <a href="{{ url_for('tags', sort='name') }}" class="btn btn-sm btn-outline-primary {% if sort == 'name' %}active{% endif %}">按名称</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="tags-container">
+        {% for tag in tags %}
+        <a href="{{ url_for('tag', tag_name=tag.name) }}" class="badge-tag {% if tag.is_hot %}hot-tag{% endif %}" data-name="{{ tag.name }}">
+            {{ tag.name }}
+            <span class="badge bg-light text-dark ms-1">{{ tag.count }}</span>
+        </a>
+        {% else %}
+        <div class="alert alert-info">暂无标签数据</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

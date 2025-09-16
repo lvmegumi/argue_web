@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}热门帖子 - 稷下学宫{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>热门帖子</h1>
+        {% if current_user.is_authenticated and current_user.category_favorites|length > 0 %}
+        <a href="{{ url_for('index', filter='favorites' if not request.args.get('filter') == 'favorites' else None) }}"
+           class="btn btn-sm {{ 'btn-primary' if request.args.get('filter') == 'favorites' else 'btn-outline-primary' }}">
+            <i class="bi bi-collection{{ '-fill' if request.args.get('filter') == 'favorites' else '' }} me-1"></i>
+            {{ '显示全部' if request.args.get('filter') == 'favorites' else '仅收藏板块' }}
+        </a>
+        {% endif %}
+    </div>
+    
+    {% if posts %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for post in posts %}
+        <div class="col">
+            <div class="card h-100 shadow-sm post-card">
+                {% set first_image = post.get_first_image() %}
+                {% if first_image %}
+                <a href="{{ url_for('post', post_id=post.id) }}">
+                    <img src="{{ first_image }}" class="card-img-top" alt="{{ post.title }}" 
+                         style="height: 180px; object-fit: cover; background-color: #f8f9fa;">
+                </a>
+                {% else %}
+                <div class="card-img-top d-flex align-items-center justify-content-center" 
+                     style="height: 180px; background-color: #f8f9fa;">
+                    <div class="text-center">
+                        <i class="bi bi-image fs-1 text-muted mb-2"></i>
+                        <p class="small text-muted">暂无图片</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('post', post_id=post.id) }}" class="text-decoration-none text-dark">{{ post.title }}</a>
+                    </h5>
+                    <div class="card-text text-muted mb-2">
+                        {{ post.content|striptags|truncate(60) }}
+                        <a href="{{ url_for('post', post_id=post.id) }}" class="text-primary">查看更多</a>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-person"></i> {{ post.author.username }}
+                        </small>
+                        <div>
+                            <span class="badge bg-primary me-1">
+                                <i class="bi bi-eye"></i> {{ post.view_count }}
+                            </span>
+                            <span class="badge bg-success">
+                                <i class="bi bi-heart"></i> {{ post.like_count }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> {{ post.created_at|naturaltime }}
+                        </small>
+                    </div>
+                    {% if post.tags %}
+                    <div class="mt-2">
+                        {% for tag in post.tags.split(',') if tag %}
+                            <a href="/tag/{{ tag }}" class="badge bg-secondary text-decoration-none me-1">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 暂无热门帖子
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .post-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .post-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .card-img-top {
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

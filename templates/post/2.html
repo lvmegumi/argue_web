@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="forum-card">
+    <div class="card-body">
+        <h1>前端框架比较：React vs Vue vs Angular</h1>
+        <div class="text-muted mb-3">
+            作者: <a href="/user/admin">admin</a> | 发布时间: 2023-09-09
+        </div>
+        <div class="post-content">
+            <p>这里是帖子内容的示例...</p>
+            <p>React、Vue和Angular是现代前端开发的三大框架...</p>
+        </div>
+        <div class="mt-4">
+            {% for tag in ['前端', 'JavaScript', 'React'] %}
+                <a href="/tag/{{ tag }}" class="badge-tag">{{ tag }}</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

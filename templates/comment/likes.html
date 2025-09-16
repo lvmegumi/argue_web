@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card forum-card">
+        <div class="card-header bg-white">
+            <h4>评论的点赞记录</h4>
+            <div class="small text-muted mb-2">
+                来自帖子: <a href="{{ url_for('post', post_id=comment.post_id) }}">{{ comment.post.title }}</a>
+            </div>
+            <a href="{{ url_for('post', post_id=comment.post_id) }}#comment-{{ comment.id }}" 
+               class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回帖子
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="mb-4 p-3 bg-light rounded">
+                <div class="d-flex align-items-center mb-2">
+                    <img src="{{ comment.author.avatar }}" class="rounded-circle me-2" width="40" height="40" 
+                         alt="{{ comment.author.username }}的头像">
+                    <div>
+                        <a href="{{ url_for('user', username=comment.author.username) }}" class="text-decoration-none">
+                            {{ comment.author.username }}
+                        </a>
+                        <div class="text-muted small">{{ naturaltime(comment.created_at) }}</div>
+                    </div>
+                </div>
+                <p>{{ comment.content }}</p>
+            </div>
+
+            {% if likes %}
+                <h5 class="mb-3">点赞用户 ({{ likes|length }})</h5>
+                <div class="list-group">
+                    {% for interaction, user in likes %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ user.avatar }}" class="rounded-circle me-3" width="50" height="50" 
+                                 alt="{{ user.username }}的头像">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('user', username=user.username) }}" class="text-decoration-none">
+                                        {{ user.username }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    {{ naturaltime(interaction.interacted_at) }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">暂无点赞记录</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

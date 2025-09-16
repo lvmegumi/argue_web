@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="text-center mb-5">帮助中心</h1>
+        
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card forum-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-book fs-1 mb-3"></i>
+                        <h3>使用指南</h3>
+                        <p>了解如何使用TechForum的各项功能</p>
+                        <a href="/help/guide" class="btn btn-outline-primary">查看指南</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card forum-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-question-circle fs-1 mb-3"></i>
+                        <h3>常见问题</h3>
+                        <p>解答您在使用过程中遇到的常见问题</p>
+                        <a href="/help/faq" class="btn btn-outline-primary">查看问题</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card forum-card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-chat-left-text fs-1 mb-3"></i>
+                        <h3>反馈建议</h3>
+                        <p>向我们提出您的宝贵意见和建议</p>
+                        <a href="/help/feedback" class="btn btn-outline-primary">提交反馈</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

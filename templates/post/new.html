@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="section-header">发表新帖子</h2>
+    
+    <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="title" class="form-label">标题</label>
+            <input type="text" class="form-control" id="title" name="title" required>
+        </div>
+        
+        <!-- 隐藏的文件上传input -->
+        <input type="file" id="imageUpload" name="images" accept="image/*" multiple style="display:none">
+        <input type="file" id="videoUpload" name="videos" accept="video/*" multiple style="display:none">
+        
+        <div class="mb-3">
+            <label for="content" class="form-label">
+                内容
+                <i class="bi bi-info-circle text-primary ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-html="true"
+                   title="<b>使用说明</b><br>1. 点击下方按钮插入图片或视频<br>2. 行内插入标记格式: [img1], [video1]<br>3. LaTeX公式: <code>$公式$</code> 或 <code>$$公式$$</code>">
+                </i>
+            </label>
+            <textarea class="form-control" id="content" name="content" rows="6" required></textarea>
+            
+            <div class="mt-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('imageUpload').click()">
+                    <i class="bi bi-image"></i> 插入图片
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="document.getElementById('videoUpload').click()">
+                    <i class="bi bi-film"></i> 插入视频
+                </button>
+            </div>
+        </div>
+
+        <script>
+        // 图片上传处理
+        document.getElementById('imageUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            const content = document.getElementById('content');
+            
+            for (let i = 0; i < files.length; i++) {
+                content.value += `[img${i+1}] `;
+            }
+        });
+        
+        // 视频上传处理
+        document.getElementById('videoUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            const content = document.getElementById('content');
+            
+            for (let i = 0; i < files.length; i++) {
+                content.value += `[video${i+1}] `;
+            }
+        });
+        </script>
+        
+        <div class="mb-3">
+            <label class="form-label">分类</label>
+            <select class="form-select mb-2" id="main_category" required>
+                <option value="">请选择主分类</option>
+            </select>
+            <select class="form-select" id="sub_category" name="category_id" disabled required>
+                <option value="">请选择子分类</option>
+            </select>
+        </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mainCategory = document.getElementById('main_category');
+            const subCategory = document.getElementById('sub_category');
+            
+            // 加载主分类
+            fetch('/api/categories')
+                .then(response => response.json())
+                .then(data => {
+                    data.categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        mainCategory.appendChild(option);
+                    });
+                });
+            
+            // 主分类变化时加载子分类
+            mainCategory.addEventListener('change', function() {
+                const categoryId = this.value;
+                subCategory.innerHTML = '<option value="">请选择子分类</option>';
+                subCategory.disabled = true;
+                
+                if (categoryId) {
+                    fetch('/api/categories')
+                        .then(response => response.json())
+                        .then(data => {
+                            const selectedCategory = data.categories.find(c => c.id == categoryId);
+                            if (selectedCategory && selectedCategory.children.length > 0) {
+                                selectedCategory.children.forEach(child => {
+                                    const option = document.createElement('option');
+                                    option.value = child.id;
+                                    option.textContent = child.name;
+                                    subCategory.appendChild(option);
+                                });
+                                subCategory.disabled = false;
+                            } else {
+                                // 如果没有子分类，直接使用主分类ID
+                                subCategory.innerHTML = `<option value="${categoryId}">${selectedCategory.name}</option>`;
+                                subCategory.disabled = false;
+                            }
+                        });
+                }
+            });
+            
+            // 表单验证
+            document.querySelector('form').addEventListener('submit', function(e) {
+                if (!mainCategory.value) {
+                    e.preventDefault();
+                    alert('请选择主分类');
+                } else if (subCategory.disabled) {
+                    // 如果没有子分类，确保category_id设置为main_category的值
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'category_id';
+                    hiddenInput.value = mainCategory.value;
+                    this.appendChild(hiddenInput);
+                }
+            });
+        });
+        </script>
+        
+        <div class="mb-3">
+            <label for="tags" class="form-label">标签（多个标签用逗号分隔）</label>
+            <input type="text" class="form-control" id="tags" name="tags" value="{{ tag }}">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">发布</button>
+        <a href="{{ url_for('latest_posts') }}" class="btn btn-outline-secondary">取消</a>
+    </form>
+</div>
+{% endblock %}

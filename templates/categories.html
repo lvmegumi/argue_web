@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}板块分类 - 稷下学宫{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- 左侧导航 -->
+            <div class="card">
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0 text-dark">我的收藏</h5>
+                </div>
+                <div class="card-body" id="favorite-categories">
+                    {% if current_user.is_authenticated %}
+                        <div class="text-muted">暂无收藏</div>
+                    {% else %}
+                        <div class="text-muted">登录后可收藏分类</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- 分类主内容 -->
+            <div class="card">
+                <div class="card-header bg-primary">
+                    <h4 class="mb-0 text-dark">板块分类</h4>
+                </div>
+                <div class="card-body" id="category-list">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 加载分类数据
+    fetch('/api/categories')
+        .then(response => response.json())
+        .then(data => {
+            console.log('分类数据:', data);  // 添加调试信息
+            const categoryList = document.getElementById('category-list');
+            categoryList.innerHTML = '';
+            
+            // 渲染分类列表
+            data.categories.forEach(category => {
+                const categoryItem = document.createElement('div');
+                categoryItem.className = 'mb-4';
+                
+                // 大类标题
+                const categoryHeader = document.createElement('div');
+                categoryHeader.className = 'd-flex justify-content-between align-items-center mb-3';
+                
+                const categoryTitle = document.createElement('h5');
+                categoryTitle.className = 'mb-0';
+                categoryTitle.textContent = category.name;
+                
+                const toggleButton = document.createElement('button');
+                toggleButton.className = 'btn btn-sm btn-outline-primary';
+                toggleButton.innerHTML = '<i class="bi bi-plus"></i>';
+                toggleButton.onclick = function() {
+                    const subList = this.closest('.mb-4').querySelector('.sub-category-list');
+                    const icon = this.querySelector('i');
+                    
+                    if (subList.style.display === 'none') {
+                        subList.style.display = 'grid';
+                        icon.className = 'bi bi-dash';
+                    } else {
+                        subList.style.display = 'none';
+                        icon.className = 'bi bi-plus';
+                    }
+                };
+                
+                categoryHeader.appendChild(categoryTitle);
+                categoryHeader.appendChild(toggleButton);
+                
+                // 子分类列表
+                const subCategoryList = document.createElement('div');
+                subCategoryList.className = 'sub-category-list row g-2 ps-4';
+                subCategoryList.style.display = 'none';
+                
+                // 递归渲染子分类
+                function renderSubCategories(categories, container, level = 0) {
+                    categories.forEach(subCategory => {
+                        const subItem = document.createElement('div');
+                        subItem.className = 'col-md-4';
+                        
+                        const subCard = document.createElement('div');
+                        subCard.className = 'card h-100';
+                        
+                        const cardBody = document.createElement('div');
+                        cardBody.className = 'card-body d-flex justify-content-between align-items-center';
+                        
+                        const subLink = document.createElement('a');
+                        subLink.href = '#';
+                        subLink.className = 'text-decoration-none flex-grow-1';
+                        
+                        // 处理字符串和对象两种形式的子分类
+                        if (typeof subCategory === 'string') {
+                            subLink.textContent = subCategory;
+                            subLink.onclick = function(e) {
+                                e.preventDefault();
+                                // 字符串子分类没有id，无法收藏
+                            };
+                        } else {
+                            subLink.textContent = subCategory.name;
+                            subLink.onclick = function(e) {
+                                e.preventDefault();
+                                toggleFavorite(subCategory.id, this);
+                            };
+                            
+                            const favoriteIcon = document.createElement('i');
+                            favoriteIcon.className = subCategory.is_favorite ? 'bi bi-star-fill text-warning' : 'bi bi-star';
+                            cardBody.appendChild(favoriteIcon);
+                        }
+                        
+                        cardBody.appendChild(subLink);
+                        subCard.appendChild(cardBody);
+                        subItem.appendChild(subCard);
+                        container.appendChild(subItem);
+                        
+                        // 如果有子分类，递归渲染
+                        if (typeof subCategory === 'object' && subCategory.children && subCategory.children.length > 0) {
+                            const nestedContainer = document.createElement('div');
+                            nestedContainer.className = 'sub-category-list row g-2 ps-4';
+                            subItem.appendChild(nestedContainer);
+                            renderSubCategories(subCategory.children, nestedContainer, level + 1);
+                        }
+                    });
+                }
+                
+                renderSubCategories(category.children, subCategoryList);
+                
+                categoryItem.appendChild(categoryHeader);
+                categoryItem.appendChild(subCategoryList);
+                categoryList.appendChild(categoryItem);
+            });
+            
+            // 更新收藏列表
+            updateFavoriteCategories();
+        });
+    
+    // 切换收藏状态
+    function toggleFavorite(categoryId, element) {
+        if (!{{ 'true' if current_user.is_authenticated else 'false' }}) {
+            alert('请先登录');
+            return false;
+        }
+        
+        console.log('取消收藏分类:', categoryId);
+        
+        fetch(`/api/category/${categoryId}/favorite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .catch(error => {
+            console.error('取消收藏失败:', error);
+            return Promise.reject(error);
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                updateFavoriteCategories();
+                
+                // 更新图标状态
+                const icon = element.nextElementSibling;
+                if (data.action === 'added') {
+                    icon.className = 'bi bi-star-fill text-warning';
+                } else {
+                    icon.className = 'bi bi-star';
+                }
+            }
+        });
+    }
+    
+    // 更新收藏分类列表
+    function updateFavoriteCategories() {
+        if (!{{ 'true' if current_user.is_authenticated else 'false' }}) return;
+        
+        fetch('/api/categories')
+            .then(response => response.json())
+            .then(data => {
+                const favoritesContainer = document.getElementById('favorite-categories');
+                const favoriteCategories = [];
+                
+                // 收集所有收藏的分类信息
+                
+                // 收集所有收藏的分类
+                data.categories.forEach(category => {
+                    if (category.is_favorite) {
+                        favoriteCategories.push({
+                            id: category.id,
+                            name: category.name
+                        });
+                    }
+                    
+                    category.children.forEach(subCategory => {
+                        if (subCategory.is_favorite) {
+                            favoriteCategories.push({
+                                id: subCategory.id,
+                                name: subCategory.name
+                            });
+                            favoriteCategories.push(subCategory.name);
+                        }
+                    });
+                });
+                
+                // 更新UI
+                if (favoriteCategories.length > 0) {
+                    favoritesContainer.innerHTML = favoriteCategories
+                        .map(cat => {
+                            return `<button class="badge bg-secondary me-1 mb-1 border-0" 
+                                    onclick="console.log('点击取消收藏:', ${cat.id}); toggleFavorite(${cat.id}, this); return false;"
+                                    data-category-id="${cat.id}"
+                                    style="cursor: pointer;">
+                                ${cat.name} <i class="bi bi-x" style="margin-left: 4px; font-size: 0.9em;"></i>
+                            </button>`;
+                        })
+                        .join('');
+                } else {
+                    favoritesContainer.innerHTML = '<div class="text-muted">暂无收藏</div>';
+                }
+            });
+    }
+});
+</script>
+
+<style>
+.sub-category-list {
+    transition: all 0.3s ease;
+}
+</style>
+{% endblock %}

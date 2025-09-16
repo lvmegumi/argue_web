@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card forum-card mt-4">
+                <div class="card-header bg-white">
+                    <h4 class="m-0"><i class="bi bi-hand-thumbs-up"></i> {{ title }}</h4>
+                </div>
+                <div class="card-body p-4">
+                    {% if comment_likes %}
+                        <div class="list-group">
+                            {% for interaction, comment in comment_likes %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="/post/{{ comment.post_id }}#comment-{{ comment.id }}" class="text-decoration-none">
+                                        {{ comment.content|truncate(50) }}
+                                    </a>
+                                    <span class="badge bg-light text-dark">
+                                        {{ comment.like_count }} 赞
+                                    </span>
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    来自: {{ interaction.user.username }} · {{ interaction.interacted_at.strftime('%Y-%m-%d') }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-muted text-center py-4">暂无评论点赞</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

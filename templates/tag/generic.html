@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="section-header">{{ tag }}相关帖子</h2>
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            <a href="{{ url_for('tags') }}" class="btn btn-outline-primary btn-sm">返回标签列表</a>
+            {% if current_user.is_authenticated %}
+            <a href="/post/new?tag={{ tag }}" class="btn btn-primary btn-sm ms-2">发帖</a>
+            {% endif %}
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown">
+                <i class="bi bi-sort-down"></i> 
+                {% if sort == 'time' %}按时间{% endif %}
+                {% if sort == 'views' %}按浏览量{% endif %}
+                {% if sort == 'likes' %}按点赞数{% endif %}
+                {% if sort == 'favorites' %}按收藏数{% endif %}
+                {% if sort == 'comments' %}按评论数{% endif %}
+                ({{ '降序' if order == 'desc' else '升序' }})
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item {% if sort == 'views' and order == 'desc' %}active{% endif %}" 
+                      href="?sort=views&order=desc">按浏览量降序</a></li>
+                <li><a class="dropdown-item {% if sort == 'views' and order == 'asc' %}active{% endif %}" 
+                      href="?sort=views&order=asc">按浏览量升序</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item {% if sort == 'time' and order == 'desc' %}active{% endif %}" 
+                      href="?sort=time&order=desc">按时间降序</a></li>
+                <li><a class="dropdown-item {% if sort == 'time' and order == 'asc' %}active{% endif %}" 
+                      href="?sort=time&order=asc">按时间升序</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item {% if sort == 'likes' and order == 'desc' %}active{% endif %}" 
+                      href="?sort=likes&order=desc">按点赞数降序</a></li>
+                <li><a class="dropdown-item {% if sort == 'likes' and order == 'asc' %}active{% endif %}" 
+                      href="?sort=likes&order=asc">按点赞数升序</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item {% if sort == 'favorites' and order == 'desc' %}active{% endif %}" 
+                      href="?sort=favorites&order=desc">按收藏数降序</a></li>
+                <li><a class="dropdown-item {% if sort == 'favorites' and order == 'asc' %}active{% endif %}" 
+                      href="?sort=favorites&order=asc">按收藏数升序</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item {% if sort == 'comments' and order == 'desc' %}active{% endif %}" 
+                      href="?sort=comments&order=desc">按评论数降序</a></li>
+                <li><a class="dropdown-item {% if sort == 'comments' and order == 'asc' %}active{% endif %}" 
+                      href="?sort=comments&order=asc">按评论数升序</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    {% if posts %}
+        {% for post in posts %}
+        <div class="forum-card">
+            <div class="card-body">
+                <h3><a href="/post/{{ post.id }}" class="text-decoration-none">{{ post.title }}</a></h3>
+                <div class="text-muted mb-2">
+                    作者: <a href="/user/{{ post.author.username }}">{{ post.author.username }}</a> | 
+                    发布时间: {{ post.created_at|naturaltime }} | 
+                    浏览量: {{ post.view_count }} | 
+                    点赞: {{ post.like_count }} | 
+                    收藏: {{ post.favorite_count }} | 
+                    评论: {{ post.comments.count() }}
+                </div>
+                <p>{{ post.content|truncate(200) }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">暂无相关帖子</div>
+    {% endif %}
+</div>
+{% endblock %}

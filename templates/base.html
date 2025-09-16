@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}稷下学宫{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <!-- MathJax for LaTeX support -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #6f42c1;
+            --light-bg: #f8f9fc;
+            --dark-text: #5a5c69;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        
+        .main-container {
+            margin-top: 30px;
+            margin-bottom: 30px;
+            flex-grow: 1;
+        }
+        
+        .forum-card {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(58, 59, 69, 0.1);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+        
+        .forum-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 25px rgba(58, 59, 69, 0.15);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f8f9fc, #e9ecef);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            color: #212529;
+        }
+        
+        .section-header {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .badge-tag {
+            background: linear-gradient(135deg, var(--secondary-color), #8a63d2);
+            color: #212529;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border: none;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .badge-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background: linear-gradient(135deg, #8a63d2, var(--secondary-color));
+        }
+
+        .hot-tag {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            font-weight: bold;
+        }
+
+        .hot-tag:hover {
+            background: linear-gradient(135deg, #ff8e8e, #ff6b6b);
+        }
+        
+        .history-item {
+            border-left: 3px solid var(--primary-color);
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                margin-top: 30px;
+            }
+        }
+
+        /* 导航栏美化 */
+        .navbar {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-brand img {
+            transition: transform 0.3s;
+        }
+        
+        .navbar-brand:hover img {
+            transform: scale(1.05);
+        }
+        
+        .nav-link {
+            position: relative;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s;
+        }
+        
+        .nav-link.active {
+            font-weight: 600;
+        }
+        
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 1rem;
+            height: 3px;
+            background: white;
+            border-radius: 3px 3px 0 0;
+        }
+        
+        .dropdown-menu {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/seal_script_logo.png') }}" alt="稷下学宫 Logo" style="height: 40px;">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/"><i class="bi bi-house-door"></i> 首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/categories"><i class="bi bi-grid"></i> 板块分类</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('tags') }}"><i class="bi bi-tags"></i> 标签</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('new_post') }}"><i class="bi bi-plus-circle"></i> 发帖</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- 搜索表单 -->
+                <form class="d-flex" action="{{ url_for('search') }}" method="GET">
+                    <div class="input-group">
+                        <input type="search" class="form-control" placeholder="搜索帖子..." 
+                               aria-label="Search" name="q" required>
+                        <button class="btn btn-outline-light" type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="/user/{{ current_user.username }}" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <img src="{{ current_user.avatar or '/static/images/avatars/default.jpg' }}" class="user-avatar me-1">
+                            {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/user/{{ current_user.username }}"><i class="bi bi-person-circle"></i> 个人中心</a></li>
+                            <li><a class="dropdown-item" href="/user/{{ current_user.username }}"><i class="bi bi-clock-history"></i> 浏览历史</a></li>
+                            <li><a class="dropdown-item" href="/user/{{ current_user.username }}/favorites"><i class="bi bi-bookmark"></i> 我的收藏</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}"><i class="bi bi-box-arrow-in-right"></i> 登录</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('register') }}"><i class="bi bi-person-plus"></i> 注册</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container main-container">
+        <div class="row">
+            <!-- 右侧内容区域 -->
+            <div class="col-lg-8" id="mainContent">
+                {% block content %}{% endblock %}
+            </div>
+            
+            <!-- 右侧边栏折叠按钮 -->
+            <div class="position-fixed top-50 end-0 translate-middle-y" style="z-index: 1030; right: 0px;">
+                <button class="btn btn-light shadow-sm sidebar-toggle-btn rounded-circle d-flex align-items-center justify-content-center" type="button" style="width: 40px; height: 40px; padding: 0;">
+                    <i class="bi bi-chevron-left sidebar-toggle-icon"></i>
+                </button>
+            </div>
+            
+            <!-- 右侧边栏 -->
+            <div class="col-lg-4" id="sidebarCollapse">
+                <div class="sidebar">
+                    <!-- 热门标签和最新发布 -->
+                    {% if not request.path.startswith('/user/') %}
+                    <!-- 最新发布 -->
+                    <div class="card forum-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="m-0"><i class="bi bi-newspaper"></i> 最新发布</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for post in latest_posts %}
+                            <div class="history-item">
+                                <a href="/post/{{ post.id }}" class="text-decoration-none">{{ post.title }}</a>
+                                <div class="text-muted small mt-1">
+                                    <span>{{ post.author.username }}</span>
+                                    <span class="ms-2">{{ post.created_at|naturaltime }}</span>
+                                </div>
+                                <div class="post-preview mt-2 text-muted small">
+                                    {{ post.content|striptags|truncate(100) }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div class="text-center mt-3">
+                                <a href="/posts/latest" class="btn btn-outline-primary btn-sm">查看全部</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 热门标签 -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">热门标签</h5>
+                            <div class="tags-container">
+                                {% for tag in hot_tags %}
+                                <a href="{{ url_for('tag', tag_name=tag) }}" class="badge-tag">{{ tag }}</a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚折叠按钮 -->
+    <div class="fixed-bottom text-center">
+        <button class="btn btn-light shadow-sm footer-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#footerCollapse" aria-expanded="false" aria-controls="footerCollapse">
+            <i class="bi bi-chevron-up footer-toggle-icon"></i>
+        </button>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="collapse text-white py-5" id="footerCollapse" style="background: linear-gradient(135deg, #2c3e50, #4a6491);">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5 class="mb-3">TechForum</h5>
+                    <p class="opacity-75">现代技术交流社区，分享知识，共同成长。</p>
+                </div>
+                <div class="col-md-2 mb-4">
+                    <h5 class="mb-3">链接</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="/" class="text-white text-decoration-none hover-opacity">首页</a></li>
+                        <li class="mb-2"><a href="/blog" class="text-white text-decoration-none hover-opacity">板块</a></li>
+                        <li class="mb-2"><a href="/tags" class="text-white text-decoration-none hover-opacity">标签</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2 mb-4">
+                    <h5 class="mb-3">帮助</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="/help/guide" class="text-white text-decoration-none hover-opacity">使用指南</a></li>
+                        <li class="mb-2"><a href="/help/faq" class="text-white text-decoration-none hover-opacity">常见问题</a></li>
+                        <li class="mb-2"><a href="/help/feedback" class="text-white text-decoration-none hover-opacity">反馈建议</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5 class="mb-3">订阅更新</h5>
+                    <div class="input-group mb-3">
+                        <input type="email" class="form-control" placeholder="您的邮箱地址">
+                        <button class="btn btn-light" type="button">订阅</button>
+                    </div>
+                    <small class="opacity-75">订阅我们的最新资讯和活动</small>
+                </div>
+            </div>
+            <hr class="my-4 opacity-25">
+            <div class="text-center">
+                <p class="mb-0 opacity-75">© 2023 TechForum. 保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <style>
+        .sidebar-toggle-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.1);
+            background-color: #f8f9fa !important;
+            cursor: pointer;
+        }
+        .sidebar-toggle-btn:hover {
+            background-color: #e9ecef !important;
+            transform: scale(1.05);
+        }
+        .sidebar-toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: #6c757d;
+        }
+        .sidebar-toggle-icon.collapsed {
+            transform: rotate(180deg);
+        }
+        #sidebarCollapse {
+            transition: all 0.3s ease;
+        }
+        #sidebarCollapse.hidden {
+            display: none;
+        }
+        
+        .hover-opacity {
+            transition: opacity 0.3s;
+        }
+        .hover-opacity:hover {
+            opacity: 0.75;
+        }
+        .footer-toggle-btn {
+            width: 40px;
+            height: 20px;
+            border-radius: 20px 20px 0 0;
+            padding: 0;
+            margin-bottom: -1px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-bottom: none;
+            background-color: #f8f9fa !important;
+        }
+        .footer-toggle-btn:hover {
+            background-color: #e9ecef !important;
+        }
+        .footer-toggle-icon {
+            font-size: 1rem;
+            transition: transform 0.3s ease;
+            position: relative;
+            top: -2px;
+        }
+        .footer-toggle-icon.collapsed {
+            transform: rotate(180deg);
+            top: 2px;
+        }
+        #footerCollapse.collapsing {
+            transition: height 0.3s ease;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 控制右侧边栏折叠和内容区域宽度
+            const sidebarToggleBtn = document.querySelector('.sidebar-toggle-btn');
+            const sidebar = document.getElementById('sidebarCollapse');
+            const mainContent = document.getElementById('mainContent');
+            const container = document.querySelector('.container.main-container');
+            
+            function adjustLayout() {
+                if (sidebar.classList.contains('hidden')) {
+                    mainContent.classList.remove('col-lg-8');
+                    mainContent.classList.add('col-lg-12');
+                    container.style.maxWidth = '100%';
+                } else {
+                    mainContent.classList.remove('col-lg-12');
+                    mainContent.classList.add('col-lg-8');
+                    container.style.maxWidth = '';
+                }
+            }
+            
+            sidebarToggleBtn.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                sidebar.classList.toggle('hidden');
+                
+                if (sidebar.classList.contains('hidden')) {
+                    icon.classList.remove('bi-chevron-left');
+                    icon.classList.add('bi-chevron-right');
+                    localStorage.setItem('sidebarCollapsed', 'true');
+                } else {
+                    icon.classList.remove('bi-chevron-right');
+                    icon.classList.add('bi-chevron-left');
+                    localStorage.setItem('sidebarCollapsed', 'false');
+                }
+                
+                adjustLayout();
+                window.dispatchEvent(new Event('resize'));
+            });
+            
+            // 支持键盘操作折叠边栏
+            document.addEventListener('keydown', function(e) {
+                // 按下 's' 键切换边栏
+                if (e.key.toLowerCase() === 's' && e.ctrlKey) {
+                    e.preventDefault();
+                    sidebarToggleBtn.click();
+                }
+            });
+
+            // 初始化布局
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (savedState === 'true') {
+                sidebar.classList.add('hidden');
+                sidebarToggleBtn.querySelector('i').classList.remove('bi-chevron-left');
+                sidebarToggleBtn.querySelector('i').classList.add('bi-chevron-right');
+            }
+            adjustLayout();
+            
+            // 控制底部导航栏箭头图标
+            const footerToggleBtn = document.querySelector('[data-bs-target="#footerCollapse"]');
+            footerToggleBtn.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (this.getAttribute('aria-expanded') === 'true') {
+                    icon.classList.remove('bi-chevron-up');
+                    icon.classList.add('bi-chevron-down');
+                } else {
+                    icon.classList.remove('bi-chevron-down');
+                    icon.classList.add('bi-chevron-up');
+                }
+            });
+
+            // 加载分类数据
+            fetch('/api/categories')
+                .then(response => response.json())
+                .then(data => {
+                    const categoryList = document.getElementById('category-list');
+                    categoryList.innerHTML = '';
+                    
+                    // 渲染分类列表
+                    data.categories.forEach(category => {
+                        const categoryItem = document.createElement('div');
+                        categoryItem.className = 'mb-3';
+                        
+                        // 大类标题
+                        const categoryHeader = document.createElement('div');
+                        categoryHeader.className = 'd-flex justify-content-between align-items-center mb-2';
+                        
+                        const categoryTitle = document.createElement('h6');
+                        categoryTitle.className = 'mb-0';
+                        categoryTitle.textContent = category.name;
+                        
+                        const toggleButton = document.createElement('button');
+                        toggleButton.className = 'btn btn-sm btn-outline-primary';
+                        toggleButton.innerHTML = '<i class="bi bi-plus"></i>';
+                        toggleButton.onclick = function() {
+                            const subList = this.closest('.mb-3').querySelector('.sub-category-list');
+                            const icon = this.querySelector('i');
+                            
+                            if (subList.style.display === 'none') {
+                                subList.style.display = 'block';
+                                icon.className = 'bi bi-dash';
+                            } else {
+                                subList.style.display = 'none';
+                                icon.className = 'bi bi-plus';
+                            }
+                        };
+                        
+                        categoryHeader.appendChild(categoryTitle);
+                        categoryHeader.appendChild(toggleButton);
+                        
+                        // 子分类列表
+                        const subCategoryList = document.createElement('div');
+                        subCategoryList.className = 'sub-category-list ps-3';
+                        subCategoryList.style.display = 'none';
+                        
+                        category.children.forEach(subCategory => {
+                            const subItem = document.createElement('div');
+                            subItem.className = 'd-flex justify-content-between align-items-center mb-1';
+                            
+                            const subLink = document.createElement('a');
+                            subLink.href = '#';
+                            subLink.className = 'text-decoration-none';
+                            subLink.textContent = subCategory.name;
+                            subLink.onclick = function(e) {
+                                e.preventDefault();
+                                toggleFavorite(subCategory.id, this);
+                            };
+                            
+                            const favoriteIcon = document.createElement('i');
+                            favoriteIcon.className = subCategory.is_favorite ? 'bi bi-star-fill text-warning' : 'bi bi-star';
+                            
+                            subItem.appendChild(subLink);
+                            subItem.appendChild(favoriteIcon);
+                            subCategoryList.appendChild(subItem);
+                        });
+                        
+                        categoryItem.appendChild(categoryHeader);
+                        categoryItem.appendChild(subCategoryList);
+                        categoryList.appendChild(categoryItem);
+                    });
+                    
+                    // 更新收藏列表
+                    updateFavoriteCategories();
+                });
+            
+            // 检查用户是否已认证
+            const isAuthenticated = "{{ 'true' if current_user.is_authenticated else 'false' }}" === "true";
+            
+            // 切换收藏状态
+            function toggleFavorite(categoryId, element) {
+                if (!isAuthenticated) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                fetch(`/api/category/${categoryId}/favorite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        updateFavoriteCategories();
+                        
+                        // 更新图标状态
+                        const icon = element.nextElementSibling;
+                        if (data.action === 'added') {
+                            icon.className = 'bi bi-star-fill text-warning';
+                        } else {
+                            icon.className = 'bi bi-star';
+                        }
+                    }
+                });
+            }
+            
+            // 更新收藏分类列表
+            function updateFavoriteCategories() {
+                if (!isAuthenticated) return;
+                
+                fetch('/api/categories')
+                    .then(response => response.json())
+                    .then(data => {
+                        const favoritesContainer = document.getElementById('favorite-categories');
+                        const favoriteCategories = [];
+                        
+                        // 收集所有收藏的分类
+                        data.categories.forEach(category => {
+                            if (category.is_favorite) {
+                                favoriteCategories.push(category.name);
+                            }
+                            
+                            category.children.forEach(subCategory => {
+                                if (subCategory.is_favorite) {
+                                    favoriteCategories.push(subCategory.name);
+                                }
+                            });
+                        });
+                        
+                        // 更新UI
+                        if (favoriteCategories.length > 0) {
+                            favoritesContainer.innerHTML = favoriteCategories
+                                .map(name => `<span class="badge bg-secondary me-1 mb-1">${name}</span>`)
+                                .join('');
+                        } else {
+                            favoritesContainer.innerHTML = '<div class="text-muted">暂无收藏</div>';
+                        }
+                    });
+            }
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
