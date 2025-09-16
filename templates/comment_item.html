@@ -17,33 +17,47 @@
             {% set claim = parts[0] | replace('论点: ', '') %}
             {% set argument = parts[1] if parts|length > 1 else '' %}
             
-            <div class="claim-section">
-                <strong>论点：</strong>
-                <div class="claim-content mt-2">
-                    {{ claim | render_markdown_images | safe }}
+            <div class="claim-argument-card">
+                <div class="claim-section">
+                    <div class="claim-header">
+                        <i class="bi bi-lightning-charge-fill text-success me-2"></i>
+                        <strong>论点</strong>
+                    </div>
+                    <div class="claim-content mt-2">
+                        {{ claim | render_markdown_images | safe }}
+                    </div>
                 </div>
-            </div>
-            
-            {% if argument %}
-            <div class="argument-section mt-3">
-                <strong>论证：</strong>
-                <div class="argument-content mt-2">
-                    {{ argument | render_markdown_images | safe }}
+                
+                {% if argument %}
+                <div class="argument-section mt-3">
+                    <div class="argument-header">
+                        <i class="bi bi-chat-square-text-fill text-primary me-2"></i>
+                        <strong>论证</strong>
+                    </div>
+                    <div class="argument-content mt-2">
+                        {{ argument | render_markdown_images | safe }}
+                    </div>
                 </div>
+                {% endif %}
             </div>
-            {% endif %}
         {% elif comment.content.startswith('论点:') %}
             {# 只有论点 #}
-            <div class="claim-section">
-                <strong>论点：</strong>
+            <div class="claim-section standalone">
+                <div class="claim-header">
+                    <i class="bi bi-lightning-charge-fill text-success me-2"></i>
+                    <strong>论点</strong>
+                </div>
                 <div class="claim-content mt-2">
                     {{ comment.content | replace('论点: ', '') | render_markdown_images | safe }}
                 </div>
             </div>
         {% elif comment.content.startswith('论证:') %}
             {# 只有论证 #}
-            <div class="argument-section">
-                <strong>论证：</strong>
+            <div class="argument-section standalone">
+                <div class="argument-header">
+                    <i class="bi bi-chat-square-text-fill text-primary me-2"></i>
+                    <strong>论证</strong>
+                </div>
                 <div class="argument-content mt-2">
                     {{ comment.content | replace('论证: ', '') | render_markdown_images | safe }}
                 </div>
@@ -69,18 +83,53 @@
                 max-width: 100%;
                 margin: 10px 0;
             }
+            
+            /* 论点论证卡片样式 */
+            .claim-argument-card {
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+                overflow: hidden;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                background: linear-gradient(to bottom, #ffffff, #fafafa);
+            }
+            
             .claim-section {
-                padding: 10px 15px;
-                background-color: #e9f7ef;
+                padding: 15px 20px;
+                background-color: #f0f9f2;
                 border-left: 4px solid #28a745;
-                border-radius: 4px;
             }
+            
+            .claim-section.standalone {
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(40, 167, 69, 0.1);
+            }
+            
             .argument-section {
-                padding: 10px 15px;
+                padding: 15px 20px;
                 background-color: #f8f9fa;
-                border-left: 4px solid #6c757d;
-                border-radius: 4px;
+                border-left: 4px solid #17a2b8;
             }
+            
+            .argument-section.standalone {
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(23, 162, 184, 0.1);
+            }
+            
+            .claim-header, .argument-header {
+                display: flex;
+                align-items: center;
+                padding-bottom: 8px;
+                border-bottom: 1px dashed #ddd;
+            }
+            
+            .claim-header strong, .argument-header strong {
+                font-size: 1.1em;
+            }
+            
+            .claim-content, .argument-content {
+                padding-top: 8px;
+            }
+            
             .latex-formula {
                 background-color: #f8f9fa;
                 padding: 10px;
@@ -113,4 +162,3 @@
         {% endif %}
     </div>
 </div>
-</file>

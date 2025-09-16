@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card forum-card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h4 class="m-0"><i class="bi bi-clock-history"></i> 浏览历史</h4>
+                    <button id="clear-history" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i> 清空历史
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if history %}
+                        <div class="list-group">
+                            {% for item in history %}
+                            <a href="{{ item.url }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">{{ item.title }}</h6>
+                                    <small class="text-muted">{{ item.visited_at|naturaltime }}</small>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-clock-history" style="font-size: 3rem; color: #ccc;"></i>
+                            <p class="mt-3 text-muted">暂无浏览历史</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const clearHistoryBtn = document.getElementById('clear-history');
+    
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener('click', function() {
+            if (confirm('确定要清空所有浏览历史吗？')) {
+                // 这里可以添加 AJAX 请求来清空历史记录
+                fetch('/api/clear_history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('清空历史记录失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('清空历史记录失败');
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

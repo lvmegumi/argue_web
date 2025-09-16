@@ -1,10 +1,17 @@
+
 # app.py
+import os
+import re
+from datetime import datetime, timedelta, timezone
+
 from flask import Flask, render_template, redirect, url_for, request, flash, g, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta, timezone
+from PIL import Image
+import io
+
 def utc_time():
     """返回当前UTC时间"""
     return datetime.now(timezone.utc)
@@ -29,13 +36,11 @@ def format_time(dt):
     else:
         return "刚刚"
 
-import os
-from PIL import Image
-import io
-
 # 创建Flask应用实例
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY') or 'dev-key'  # 从环境变量获取密钥
+
+# 配置密钥 - 生产环境中应从环境变量获取
+app.secret_key = os.environ.get('SECRET_KEY') or 'dev-key-change-in-production'
 
 # 配置上传文件夹
 UPLOAD_FOLDER = 'static/images/avatars'
@@ -47,7 +52,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'avi', 
 @app.template_filter('render_markdown_images')
 def render_markdown_images(content):
     """将Markdown格式的图片链接转换为HTML图片标签"""
-    import re
     if not content:
         return content
     
@@ -73,14 +77,24 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['POST_IMAGE_FOLDER'], exist_ok=True)
 
 # 配置数据库
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+# 生产环境中应使用环境变量配置数据库URI
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 生产环境配置
+if not os.environ.get('FLASK_ENV') == 'development':
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+
 db = SQLAlchemy(app)
 
 # 初始化Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message = '请先登录以访问此页面。'
 
 # 初始化数据库迁移
 migrate = Migrate(app, db)
@@ -104,9 +118,63 @@ class UserModel(UserMixin, db.Model):
     post_likes_received = db.Column(db.Integer, default=0)
     comment_likes_received = db.Column(db.Integer, default=0)
     faction = db.Column(db.String(10))  # 'pro' or 'anti'
+    score = db.Column(db.Float, default=1.0)  # 用户分数，初始为1分
 
     def get_id(self):
         return str(self.id)
+    
+    def update_score(self):
+        """更新用户分数"""
+        # 初始分数为1分
+        new_score = 1.0
+        
+        # 计算帖子收到的点赞和点踩
+        post_interactions = (db.session.query(UserPostInteraction, UserModel)
+                         .join(UserModel, UserPostInteraction.user_id == UserModel.id)
+                         .join(PostModel, UserPostInteraction.post_id == PostModel.id)
+                         .filter(PostModel.author_id == self.id)
+                         .all())
+        
+        # 计算评论收到的点赞和点踩
+        comment_interactions = (db.session.query(UserCommentInteraction, UserModel)
+                            .join(UserModel, UserCommentInteraction.user_id == UserModel.id)
+                            .join(CommentModel, UserCommentInteraction.comment_id == CommentModel.id)
+                            .filter(CommentModel.author_id == self.id)
+                            .all())
+        
+        # 处理帖子互动
+        for interaction, user in post_interactions:
+            if interaction.liked:
+                # 点赞加权分数，基于当前用户分数调整增长速度
+                user_score = max(user.score or 1.0, 1.0)
+                # 使用对数函数使初始增长快，后续增长慢
+                weight = user_score / (500 * (1 + (self.score or 1.0) / 10))
+                new_score += weight
+            elif interaction.disliked:
+                # 点踩减权分数，基于当前用户分数调整减少速度
+                user_score = max(user.score or 1.0, 1.0)
+                # 减少的分数也基于当前分数，分数越高越难减少
+                weight = user_score / (500* (1 + (self.score or 1.0) / 20))
+                new_score -= weight
+        
+        # 处理评论互动
+        for interaction, user in comment_interactions:
+            if interaction.liked:
+                # 点赞加权分数
+                user_score = max(user.score or 1.0, 1.0)
+                # 使用对数函数使初始增长快，后续增长慢
+                weight = user_score / (100 * (1 + (self.score or 1.0) / 5))
+                new_score += weight
+            elif interaction.disliked:
+                # 点踩减权分数
+                user_score = max(user.score or 1.0, 1.0)
+                # 减少的分数也基于当前分数，分数越高越难减少
+                weight = user_score / (100 * (1 + (self.score or 1.0) / 10))
+                new_score -= weight
+        
+        # 确保最低分数为1分，并保留两位小数
+        self.score = max(new_score, 1.0)
+        return self.score
 
 # 浏览历史模型
 class HistoryModel(db.Model):
@@ -180,7 +248,6 @@ class PostModel(db.Model):
     
     def get_first_image(self):
         """从内容中提取第一张图片URL"""
-        import re
         if not self.content:
             return None
         
@@ -299,6 +366,10 @@ def post_interaction(post_id, action):
         )
         db.session.add(interaction)
 
+    # 保存操作前的状态
+    was_liked = interaction.liked
+    was_disliked = interaction.disliked
+
     if action == 'like':
         if interaction.liked:
             post.like_count -= 1
@@ -368,6 +439,13 @@ def post_interaction(post_id, action):
 
     interaction.interacted_at = utc_time()
     db.session.commit()
+
+    # 更新帖子作者的分数（仅在点赞/点踩状态改变时）
+    if action in ['like', 'dislike'] and (was_liked != interaction.liked or was_disliked != interaction.disliked):
+        post_author = UserModel.query.get(post.author_id)
+        if post_author:
+            post_author.update_score()
+            db.session.commit()
 
     response_data = {
         'action': action,
@@ -459,6 +537,10 @@ def comment_interaction(comment_id, action):
         )
         db.session.add(interaction)
 
+    # 保存操作前的状态
+    was_liked = interaction.liked
+    was_disliked = interaction.disliked
+
     if action == 'like':
         if interaction.liked:
             comment.like_count -= 1
@@ -486,6 +568,13 @@ def comment_interaction(comment_id, action):
 
     interaction.interacted_at = utc_time()
     db.session.commit()
+
+    # 更新评论作者的分数（仅在点赞/点踩状态改变时）
+    if action in ['like', 'dislike'] and (was_liked != interaction.liked or was_disliked != interaction.disliked):
+        comment_author = UserModel.query.get(comment.author_id)
+        if comment_author:
+            comment_author.update_score()
+            db.session.commit()
 
     response_data = {
         'action': action,
@@ -657,7 +746,46 @@ def latest_posts():
 # 标签列表路由
 @app.route('/tags')
 def tags():
-    return render_template('tags.html', title='标签列表', hot_tags=get_hot_tags(50))
+    # 获取所有标签并统计数量
+    all_posts = PostModel.query.all()
+    tag_counts = {}
+    
+    # 统计所有帖子中的标签
+    for post in all_posts:
+        if post.tags:
+            tags = [tag.strip() for tag in post.tags.split(',')]
+            for tag in tags:
+                if tag:
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    
+    # 将标签数据转换为列表格式
+    tags_data = []
+    hot_tags_list = get_hot_tags(20)  # 获取热门标签用于标记
+    
+    for tag_name, count in tag_counts.items():
+        tags_data.append({
+            'name': tag_name,
+            'count': count,
+            'is_hot': tag_name in hot_tags_list
+        })
+    
+    # 根据参数排序
+    sort = request.args.get('sort', 'hot')
+    if sort == 'new':
+        # 按最新排序，这里简化处理，按名称排序
+        tags_data.sort(key=lambda x: x['name'], reverse=True)
+    elif sort == 'name':
+        # 按名称排序
+        tags_data.sort(key=lambda x: x['name'])
+    else:
+        # 默认按热度排序（标签出现次数）
+        tags_data.sort(key=lambda x: x['count'], reverse=True)
+    
+    return render_template('tags.html', 
+                         title='标签列表', 
+                         tags=tags_data,
+                         sort=sort,
+                         hot_tags=get_hot_tags(50))
 
 # 标签详情页路由
 @app.route('/tag/<tag_name>')
@@ -718,6 +846,9 @@ def user(username):
     post_likes = []
     comment_likes = []
     
+    # 获取用户的评论记录
+    user_comments = []
+    
     if current_user.is_authenticated and current_user.username == username:
         # 查询帖子点赞
         post_likes = (db.session.query(UserPostInteraction, PostModel)
@@ -732,12 +863,27 @@ def user(username):
                          .filter(CommentModel.author_id == user.id, UserCommentInteraction.liked == True)
                          .order_by(UserCommentInteraction.interacted_at.desc())
                          .all())
+                         
+        # 获取用户的评论记录，包括帖子信息
+        user_comments_query = (db.session.query(CommentModel, PostModel)
+                              .join(PostModel, CommentModel.post_id == PostModel.id)
+                              .filter(CommentModel.author_id == user.id)
+                              .order_by(CommentModel.created_at.desc())
+                              .all())
+        
+        # 将查询结果转换为更容易处理的格式
+        user_comments = []
+        for comment, post in user_comments_query:
+            comment.post = post  # 将帖子信息附加到评论对象上
+            user_comments.append(comment)
+        
         # 已登录用户查看自己的资料
         user_info = {
             "username": user.username,
             "avatar": user.avatar,
             "join_date": user.created_at.strftime('%Y-%m-%d'),
-            "bio": user.bio
+            "bio": user.bio,
+            "score": user.score  # 添加用户分数
         }
     else:
         # 未登录用户或查看他人资料
@@ -745,14 +891,30 @@ def user(username):
             "username": user.username,
             "avatar": '/static/images/default_avatar.jpg',
             "join_date": user.created_at.strftime('%Y-%m-%d'),
-            "bio": user.bio
+            "bio": user.bio,
+            "score": user.score  # 添加用户分数
         }
+        
+        # 获取用户的评论记录（对其他用户也显示）
+        user_comments_query = (db.session.query(CommentModel, PostModel)
+                              .join(PostModel, CommentModel.post_id == PostModel.id)
+                              .filter(CommentModel.author_id == user.id)
+                              .order_by(CommentModel.created_at.desc())
+                              .all())
+        
+        # 将查询结果转换为更容易处理的格式
+        user_comments = []
+        for comment, post in user_comments_query:
+            comment.post = post  # 将帖子信息附加到评论对象上
+            user_comments.append(comment)
+    
     return render_template('user/user.html', 
                          title=f"{username}的主页", 
                          user=user_info,
                          posts=posts,
                          post_likes=post_likes,
-                         comment_likes=comment_likes)
+                         comment_likes=comment_likes,
+                         user_comments=user_comments)
 
 @app.route('/user/<username>/update', methods=['POST'])
 @login_required
@@ -781,49 +943,6 @@ def update_profile(username):
     flash('资料更新成功')
     return redirect(url_for('user', username=username))
 
-# 浏览历史路由
-@app.route('/post/<int:post_id>/likes')
-def post_likes(post_id):
-    post = PostModel.query.get_or_404(post_id)
-    
-    # 只有帖子作者或管理员可以查看点赞详情
-    if not current_user.is_authenticated or (current_user.id != post.author_id and not current_user.is_admin):
-        flash('无权查看此内容')
-        return redirect(url_for('post', post_id=post_id))
-    
-    # 获取所有点赞记录
-    likes = (db.session.query(UserPostInteraction, UserModel)
-             .join(UserModel, UserPostInteraction.user_id == UserModel.id)
-             .filter(UserPostInteraction.post_id == post_id, UserPostInteraction.liked == True)
-             .order_by(UserPostInteraction.interacted_at.desc())
-             .all())
-    
-    return render_template('post/likes.html', 
-                         title=f"{post.title}的点赞记录",
-                         post=post,
-                         likes=likes)
-
-@app.route('/comment/<int:comment_id>/likes')
-def comment_likes(comment_id):
-    comment = CommentModel.query.get_or_404(comment_id)
-    
-    # 只有评论作者或管理员可以查看点赞详情
-    if not current_user.is_authenticated or (current_user.id != comment.author_id and not current_user.is_admin):
-        flash('无权查看此内容')
-        return redirect(url_for('post', post_id=comment.post_id))
-    
-    # 获取所有点赞记录
-    likes = (db.session.query(UserCommentInteraction, UserModel)
-             .join(UserModel, UserCommentInteraction.user_id == UserModel.id)
-             .filter(UserCommentInteraction.comment_id == comment_id, UserCommentInteraction.liked == True)
-             .order_by(UserCommentInteraction.interacted_at.desc())
-             .all())
-    
-    return render_template('comment/likes.html', 
-                         title=f"评论的点赞记录",
-                         comment=comment,
-                         likes=likes)
-
 @app.route('/user/<username>/history')
 @login_required
 def user_history(username):
@@ -832,16 +951,10 @@ def user_history(username):
         return redirect(url_for('user', username=username))
     
     # 从数据库获取浏览历史
-    history = current_user.histories.order_by(HistoryModel.visited_at.desc()).limit(20).all()
-    formatted_history = [{
-        "url": h.url,
-        "title": h.title,
-       # "time": naturaltime(h.visited_at)
-    } for h in history]
+    history = current_user.histories.order_by(HistoryModel.visited_at.desc()).all()
     
-    return render_template('user/user.html',
+    return render_template('user/history.html',
                          title=f"{username}的浏览历史", 
-                         user={"username": username},
                          history=history)
 
 @app.route('/user/<username>/favorites')
@@ -908,55 +1021,102 @@ def user_comment_likes(username):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        # 基本验证
+        if not username:
+            flash('请输入用户名')
+            return render_template('user/login.html')
+            
+        if not password:
+            flash('请输入密码')
+            return render_template('user/login.html')
         
         user = UserModel.query.filter_by(username=username).first()
         if not user:
             flash('用户不存在')
+            return render_template('user/login.html')
         elif not check_password_hash(user.password_hash, password):
             flash('密码错误')
+            return render_template('user/login.html')
         else:
             login_user(user)
-            return redirect(url_for('index'))
+            # 重定向到用户之前访问的页面或首页
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('index'))
     return render_template('user/login.html')
 
 # 注册路由
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
         
-        # 验证数据
+        # 数据验证
+        if not username:
+            flash('请输入用户名')
+            return render_template('user/register.html')
+            
+        if len(username) < 3 or len(username) > 20:
+            flash('用户名长度必须在3-20个字符之间')
+            return render_template('user/register.html')
+            
+        if not all(c.isalnum() or c == '_' for c in username):
+            flash('用户名只能包含字母、数字和下划线')
+            return render_template('user/register.html')
+            
+        if not email:
+            flash('请输入邮箱地址')
+            return render_template('user/register.html')
+            
+        if '@' not in email or '.' not in email:
+            flash('请输入有效的邮箱地址')
+            return render_template('user/register.html')
+            
+        if not password:
+            flash('请输入密码')
+            return render_template('user/register.html')
+            
+        if len(password) < 6:
+            flash('密码长度至少6个字符')
+            return render_template('user/register.html')
+            
         if password != confirm_password:
             flash('两次输入的密码不一致')
-            return redirect(url_for('register'))
+            return render_template('user/register.html')
             
-        if UserModel.query.filter_by(username=username).first():
-            flash('用户名已存在')
-            return redirect(url_for('register'))
+        # 检查用户名是否已存在
+        existing_user = UserModel.query.filter_by(username=username).first()
+        if existing_user:
+            flash('用户名已存在，请选择其他用户名')
+            return render_template('user/register.html')
             
-        if UserModel.query.filter_by(email=email).first():
-            flash('该邮箱已被注册')
-            return redirect(url_for('register'))
+        # 检查邮箱是否已被注册
+        existing_email = UserModel.query.filter_by(email=email).first()
+        if existing_email:
+            flash('该邮箱已被注册，请使用其他邮箱')
+            return render_template('user/register.html')
             
         # 创建新用户
         new_user = UserModel(
             username=username,
             email=email,
-            phone=phone,
             password_hash=generate_password_hash(password)
         )
         
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash('注册成功，请登录')
-        return redirect(url_for('login'))
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('注册成功，请登录')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            flash('注册失败，请稍后重试')
+            return render_template('user/register.html')
         
     return render_template('user/register.html')
 
@@ -1178,6 +1338,40 @@ def upload_video():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+# 浏览历史路由
+@app.route('/post/<int:post_id>/likes')
+def post_likes(post_id):
+    post = PostModel.query.get_or_404(post_id)
+    
+    # 只有帖子作者或管理员可以查看点赞详情
+    if not current_user.is_authenticated or (current_user.id != post.author_id and not current_user.is_admin):
+        flash('无权查看此内容')
+        return redirect(url_for('post', post_id=post_id))
+    
+    # 获取所有点赞记录
+    likes = (db.session.query(UserPostInteraction, UserModel)
+             .join(UserModel, UserPostInteraction.user_id == UserModel.id)
+             .filter(UserPostInteraction.post_id == post_id, UserPostInteraction.liked == True)
+             .order_by(UserPostInteraction.interacted_at.desc())
+             .all())
+    
+    return render_template('post/likes.html', 
+                         title=f"{post.title}的点赞记录",
+                         post=post,
+                         likes=likes)
+
+@app.route('/api/clear_history', methods=['POST'])
+@login_required
+def clear_history():
+    try:
+        # 删除当前用户的所有浏览历史
+        HistoryModel.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # 记录浏览历史的中间件
 @app.before_request
 def before_request():
@@ -1190,12 +1384,28 @@ def before_request():
             post_id = request.view_args.get('post_id')
             post = PostModel.query.get(post_id)
             if post:
-                history = HistoryModel(
+                # 使用url_for生成完整的URL
+                post_url = url_for('post', post_id=post_id)
+                
+                # 检查是否已存在该帖子的浏览记录
+                existing_history = HistoryModel.query.filter_by(
                     user_id=current_user.id,
-                    url=request.path,
-                    title=post.title
-                )
-                db.session.add(history)
+                    url=post_url
+                ).first()
+                
+                if existing_history:
+                    # 如果已存在，则更新访问时间
+                    existing_history.visited_at = utc_time()
+                    existing_history.title = post.title
+                else:
+                    # 如果不存在，则创建新记录
+                    history = HistoryModel(
+                        user_id=current_user.id,
+                        url=post_url,
+                        title=post.title
+                    )
+                    db.session.add(history)
+                
                 db.session.commit()
 
 def get_hot_tags(limit=10):
@@ -1218,15 +1428,37 @@ def get_hot_tags(limit=10):
     sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
     return [tag[0] for tag in sorted_tags]
 
+def get_hot_tags_with_count(limit=10):
+    """获取热门标签及计数（近一个月内热度最高的帖子中的标签，按出现频率排序）"""
+    one_month_ago = utc_time() - timedelta(days=30)
+    
+    # 获取近一个月内热度最高的帖子（按浏览量+点赞数*10+收藏数*5计算热度）
+    hot_posts = PostModel.query.filter(PostModel.created_at >= one_month_ago).all()
+    
+    # 统计标签频率
+    tag_counts = {}
+    for post in hot_posts:
+        if post.tags:
+            tags = [tag.strip() for tag in post.tags.split(',')]
+            for tag in tags:
+                if tag:
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    
+    # 按频率排序并取前N个
+    sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+    return sorted_tags
+
 # 上下文处理器 - 自动向模板注入current_user、format_time、latest_posts和hot_tags
 @app.context_processor
 def inject_user():
     latest_posts = PostModel.query.order_by(PostModel.created_at.desc()).limit(5).all()
+    hot_tags_with_count = get_hot_tags_with_count()
     return dict(
         current_user=current_user, 
         naturaltime=format_time,
         latest_posts=latest_posts,
-        hot_tags=get_hot_tags()
+        hot_tags_with_count=hot_tags_with_count,
+        hot_tags=[tag[0] for tag in hot_tags_with_count]  # 保持向后兼容
     )
 
 # 初始化分类数据
@@ -1269,7 +1501,7 @@ def init_categories():
     ]
     
     for cat_data in categories:
-        # 检查大类是否已存在
+        # 检查大类是否已存在，如果不存在则创建
         main_cat = CategoryModel.query.filter_by(name=cat_data['name'], is_main=True).first()
         if not main_cat:
             main_cat = CategoryModel(
@@ -1277,49 +1509,95 @@ def init_categories():
                 is_main=True
             )
             db.session.add(main_cat)
-            db.session.commit()
-            
-            # 添加子分类
-            for child in cat_data['children']:
-                # 处理嵌套的子分类结构
-                if isinstance(child, dict):
-                    # 处理有子分类的分类
-                    sub_cat = CategoryModel.query.filter_by(name=child['name'], parent_id=main_cat.id).first()
-                    if not sub_cat:
-                        sub_cat = CategoryModel(
-                            name=child['name'],
-                            parent_id=main_cat.id,
-                            is_main=False
-                        )
-                        db.session.add(sub_cat)
-                        db.session.commit()
-                    
-                    # 递归处理子分类
-                    for sub_child in child['children']:
-                        child_cat = CategoryModel.query.filter_by(name=sub_child, parent_id=sub_cat.id).first()
-                        if not child_cat:
-                            child_cat = CategoryModel(
-                                name=sub_child,
-                                parent_id=sub_cat.id,
-                                is_main=False
-                            )
-                            db.session.add(child_cat)
-                else:
-                    # 处理简单的子分类字符串
-                    child_cat = CategoryModel.query.filter_by(name=child, parent_id=main_cat.id).first()
+            db.session.flush()  # 使用flush而不是commit，确保可以获取到id
+        
+        # 添加或更新子分类
+        for child in cat_data['children']:
+            # 处理嵌套的子分类结构
+            if isinstance(child, dict):
+                # 处理有子分类的分类
+                sub_cat = CategoryModel.query.filter_by(name=child['name'], parent_id=main_cat.id).first()
+                if not sub_cat:
+                    sub_cat = CategoryModel(
+                        name=child['name'],
+                        parent_id=main_cat.id,
+                        is_main=False
+                    )
+                    db.session.add(sub_cat)
+                    db.session.flush()  # 使用flush而不是commit
+                
+                # 递归处理子分类
+                for sub_child in child.get('children', []):
+                    child_cat = CategoryModel.query.filter_by(name=sub_child, parent_id=sub_cat.id).first()
                     if not child_cat:
                         child_cat = CategoryModel(
-                            name=child,
-                            parent_id=main_cat.id,
+                            name=sub_child,
+                            parent_id=sub_cat.id,
                             is_main=False
                         )
                         db.session.add(child_cat)
-            db.session.commit()
+            else:
+                # 处理简单的子分类字符串
+                child_cat = CategoryModel.query.filter_by(name=child, parent_id=main_cat.id).first()
+                if not child_cat:
+                    child_cat = CategoryModel(
+                        name=child,
+                        parent_id=main_cat.id,
+                        is_main=False
+                    )
+                    db.session.add(child_cat)
+    
+    # 提交所有更改
+    db.session.commit()
+
+def init_user_scores():
+    """初始化所有用户的分数"""
+    users = UserModel.query.all()
+    for user in users:
+        user.update_score()
+    db.session.commit()
+
+def init_database():
+    """初始化数据库"""
+    # 创建所有表
+    db.create_all()
+    
+    # 初始化分类数据
+    init_categories()
+    
+    # 初始化所有用户分数
+    init_user_scores()
+
+@app.route('/help')
+def help():
+    return render_template('help.html')
+
+@app.route('/help/guide')
+def help_guide():
+    return render_template('help/guide.html')
+
+@app.route('/help/faq')
+def help_faq():
+    return render_template('help/faq.html')
+
+@app.route('/help/feedback', methods=['GET', 'POST'])
+def help_feedback():
+    if request.method == 'POST':
+        # 获取表单数据
+        subject = request.form.get('subject')
+        content = request.form.get('content')
+        contact = request.form.get('contact')
+        
+        # 这里应该处理反馈数据，比如保存到数据库或发送邮件
+        # 目前我们只是简单地显示一个成功消息
+        flash('感谢您的反馈！我们会尽快处理您的建议。', 'success')
+        return redirect(url_for('help_feedback'))
+    
+    return render_template('help/feedback.html')
 
 # 初始化数据库
 with app.app_context():
-    db.create_all()
-    init_categories()
+    init_database()
     # 临时检查数据库结构
     from sqlalchemy import inspect
     inspector = inspect(db.engine)
@@ -1338,5 +1616,5 @@ def check_db():
 # 启动应用（仅开发环境用）
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
+        init_database()
     app.run(debug=True)  # debug=True：代码修改后自动重启，报错时显示调试页面

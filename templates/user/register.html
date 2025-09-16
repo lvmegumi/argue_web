@@ -10,26 +10,42 @@
                 <h4 class="section-header">用户注册</h4>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('register') }}">
+                <!-- 显示闪现消息 -->
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST" action="{{ url_for('register') }}" novalidate>
                     <div class="mb-3">
                         <label for="username" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
+                        <input type="text" class="form-control" id="username" name="username" required 
+                               minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+">
+                        <div class="form-text">用户名长度为3-20个字符，只能包含字母、数字和下划线</div>
+                        <div class="invalid-feedback">请输入有效的用户名</div>
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">电子邮箱</label>
                         <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">手机号</label>
-                        <input type="tel" class="form-control" id="phone" name="phone" required>
+                        <div class="invalid-feedback">请输入有效的邮箱地址</div>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">密码</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                        <input type="password" class="form-control" id="password" name="password" required
+                               minlength="6" maxlength="128">
+                        <div class="form-text">密码长度至少6个字符</div>
+                        <div class="invalid-feedback">请输入有效的密码</div>
                     </div>
                     <div class="mb-3">
                         <label for="confirm_password" class="form-label">确认密码</label>
                         <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        <div class="invalid-feedback">请确认密码</div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">注册</button>
                 </form>

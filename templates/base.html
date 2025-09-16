@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}稷下学宫{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/TITLE.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
     <!-- MathJax for LaTeX support -->
@@ -115,6 +116,8 @@
 
         .hot-tag:hover {
             background: linear-gradient(135deg, #ff8e8e, #ff6b6b);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
         .history-item {
@@ -176,6 +179,17 @@
             border: none;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+        
+        .hot-tag {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            font-weight: bold;
+        }
+
+        .hot-tag:hover {
+            background: linear-gradient(135deg, #ff8e8e, #ff6b6b);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -226,7 +240,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="/user/{{ current_user.username }}"><i class="bi bi-person-circle"></i> 个人中心</a></li>
-                            <li><a class="dropdown-item" href="/user/{{ current_user.username }}"><i class="bi bi-clock-history"></i> 浏览历史</a></li>
+                            <li><a class="dropdown-item" href="/user/{{ current_user.username }}/history"><i class="bi bi-clock-history"></i> 浏览历史</a></li>
                             <li><a class="dropdown-item" href="/user/{{ current_user.username }}/favorites"><i class="bi bi-bookmark"></i> 我的收藏</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
@@ -289,13 +303,23 @@
                         </div>
                     </div>
                     <!-- 热门标签 -->
-                    <div class="card">
+                    <div class="card forum-card">
+                        <div class="card-header bg-white">
+                            <h5 class="m-0"><i class="bi bi-fire"></i> 热门标签</h5>
+                        </div>
                         <div class="card-body">
-                            <h5 class="card-title">热门标签</h5>
                             <div class="tags-container">
-                                {% for tag in hot_tags %}
-                                <a href="{{ url_for('tag', tag_name=tag) }}" class="badge-tag">{{ tag }}</a>
+                                {% for tag, count in hot_tags_with_count %}
+                                <a href="{{ url_for('tag', tag_name=tag) }}" class="badge-tag hot-tag" title="{{ count }} 篇帖子">
+                                    {{ tag }}
+                                    <span class="badge bg-light text-dark ms-1">{{ count }}</span>
+                                </a>
+                                {% else %}
+                                <div class="text-muted">暂无热门标签</div>
                                 {% endfor %}
+                            </div>
+                            <div class="text-center mt-3">
+                                <a href="{{ url_for('tags') }}" class="btn btn-outline-primary btn-sm">查看全部标签</a>
                             </div>
                         </div>
                     </div>
@@ -322,23 +346,23 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4">
-                    <h5 class="mb-3">TechForum</h5>
-                    <p class="opacity-75">现代技术交流社区，分享知识，共同成长。</p>
+                    <h5 class="mb-3">墨子</h5>
+                    <p class="opacity-75">夫辩者，将以明是非之分</p>
                 </div>
                 <div class="col-md-2 mb-4">
                     <h5 class="mb-3">链接</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="/" class="text-white text-decoration-none hover-opacity">首页</a></li>
-                        <li class="mb-2"><a href="/blog" class="text-white text-decoration-none hover-opacity">板块</a></li>
-                        <li class="mb-2"><a href="/tags" class="text-white text-decoration-none hover-opacity">标签</a></li>
+                        <li class="mb-2"><a href="{{ url_for('index') }}" class="text-white text-decoration-none hover-opacity">首页</a></li>
+                        <li class="mb-2"><a href="{{ url_for('categories') }}" class="text-white text-decoration-none hover-opacity">板块</a></li>
+                        <li class="mb-2"><a href="{{ url_for('tags') }}" class="text-white text-decoration-none hover-opacity">标签</a></li>
                     </ul>
                 </div>
                 <div class="col-md-2 mb-4">
                     <h5 class="mb-3">帮助</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="/help/guide" class="text-white text-decoration-none hover-opacity">使用指南</a></li>
-                        <li class="mb-2"><a href="/help/faq" class="text-white text-decoration-none hover-opacity">常见问题</a></li>
-                        <li class="mb-2"><a href="/help/feedback" class="text-white text-decoration-none hover-opacity">反馈建议</a></li>
+                        <li class="mb-2"><a href="{{ url_for('help_guide') }}" class="text-white text-decoration-none hover-opacity">使用指南</a></li>
+                        <li class="mb-2"><a href="{{ url_for('help_faq') }}" class="text-white text-decoration-none hover-opacity">常见问题</a></li>
+                        <li class="mb-2"><a href="{{ url_for('help_feedback') }}" class="text-white text-decoration-none hover-opacity">反馈建议</a></li>
                     </ul>
                 </div>
                 <div class="col-md-4 mb-4">
@@ -352,7 +376,7 @@
             </div>
             <hr class="my-4 opacity-25">
             <div class="text-center">
-                <p class="mb-0 opacity-75">© 2023 TechForum. 保留所有权利。</p>
+                <p class="mb-0 opacity-75">© 2025 Megumi. 保留所有权利。</p>
             </div>
         </div>
     </footer>

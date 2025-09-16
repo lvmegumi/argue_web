@@ -876,6 +876,16 @@ function initModeSwitching() {
         if (savedMode === 'timeline') {
             sortTimeline('desc');
         }
+        
+        // 初始化默认模式的阵营选择
+        if (savedMode === 'default') {
+            initDefaultModeFactionToggle();
+        }
+        
+        // 初始化默认模式的阵营选择
+        if (savedMode === 'default') {
+            initDefaultModeFactionToggle();
+        }
     }
 
     modeButtons.forEach(button => {
@@ -904,6 +914,11 @@ function initModeSwitching() {
                 if (targetMode === 'timeline') {
                     sortTimeline('desc');
                 }
+                
+                // 初始化默认模式的阵营选择
+                if (targetMode === 'default') {
+                    initDefaultModeFactionToggle();
+                }
             }
             
             // 保存选择的模式到本地存储
@@ -912,6 +927,24 @@ function initModeSwitching() {
             e.preventDefault();
         });
     });
+}
+
+// 初始化默认模式的阵营切换功能
+function initDefaultModeFactionToggle() {
+    // 检查本地存储中是否有保存的阵营选择
+    const savedFaction = localStorage.getItem('defaultModeFaction_{{ post.id }}') || 'pro';
+    
+    // 设置初始阵营显示
+    document.querySelectorAll('.faction-toggle').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.faction === savedFaction) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // 切换正反方评论显示
+    document.getElementById('pro-comments-default').classList.toggle('d-none', savedFaction !== 'pro');
+    document.getElementById('anti-comments-default').classList.toggle('d-none', savedFaction !== 'anti');
 }
 
 // 评论排序功能初始化
@@ -944,25 +977,19 @@ function initCommentSorting() {
     // 排序按钮点击事件（默认模式）
     document.querySelectorAll('.sort-btn-default').forEach(button => {
         button.addEventListener('click', function() {
-            const target = this.dataset.target;
+            const faction = this.dataset.faction;
             const sortBy = this.dataset.sort;
             let order = this.dataset.order;
             
             // 如果已经是当前排序方式，切换排序方向
-            const container = document.getElementById(`${target}-comments-default`);
+            const container = document.getElementById(`${faction}-comments-default`);
             if (container.dataset.sort === sortBy) {
                 order = container.dataset.order === 'asc' ? 'desc' : 'asc';
                 this.dataset.order = order;
             }
             
-            // 更新按钮状态
-            document.querySelectorAll(`.sort-btn-default[data-target="${target}"]`).forEach(btn => {
-                btn.classList.remove('active');
-            });
-            this.classList.add('active');
-            
             // 执行排序
-            sortCommentsDefault(target, sortBy, order);
+            sortCommentsDefault(faction, sortBy, order);
         });
     });
 
@@ -978,6 +1005,22 @@ function initCommentSorting() {
             // 切换正反方评论显示
             document.getElementById('pro-comments-default').classList.toggle('d-none', this.dataset.faction !== 'pro');
             document.getElementById('anti-comments-default').classList.toggle('d-none', this.dataset.faction !== 'anti');
+            
+            // 保存选择的阵营到本地存储
+            localStorage.setItem('defaultModeFaction_{{ post.id }}', this.dataset.faction);
+            
+            // 激活对应阵营的排序按钮
+            document.querySelectorAll('.sort-btn-default').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 激活当前阵营当前排序状态的按钮
+            const currentFaction = this.dataset.faction;
+            const container = document.getElementById(`${currentFaction}-comments-default`);
+            const sort = container.dataset.sort;
+            const order = container.dataset.order;
+            document.querySelector(`.sort-btn-default[data-faction="${currentFaction}"][data-sort="${sort}"][data-order="${order}"]`)
+                .classList.add('active');
         });
     });
 
@@ -1049,8 +1092,8 @@ function sortComments(columnId, sortBy, order) {
 }
 
 // 默认模式评论排序功能
-function sortCommentsDefault(target, sortBy, order) {
-    const container = document.getElementById(`${target}-comments-default`);
+function sortCommentsDefault(faction, sortBy, order) {
+    const container = document.getElementById(`${faction}-comments-default`);
     if (!container) return;
     
     const comments = Array.from(container.children).filter(el => 
@@ -1098,6 +1141,12 @@ function sortCommentsDefault(target, sortBy, order) {
     // 更新容器的排序状态
     container.dataset.sort = sortBy;
     container.dataset.order = order;
+    
+    // 更新按钮状态
+    document.querySelectorAll(`.sort-btn-default[data-faction="${faction}"]`).forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.sort-btn-default[data-faction="${faction}"][data-sort="${sortBy}"][data-order="${order}"]`).classList.add('active');
 }
 
 // 初始化排序按钮状态
@@ -1114,10 +1163,10 @@ function initSortButtons() {
     
     // 初始化默认模式排序按钮状态
     document.querySelectorAll('.sort-btn-default').forEach(button => {
-        const target = button.dataset.target;
-        const container = document.getElementById(`${target}-comments-default`);
+        const faction = button.dataset.faction;
+        const container = document.getElementById(`${faction}-comments-default`);
         
-        if (button.dataset.sort === container.dataset.sort && 
+        if (container && button.dataset.sort === container.dataset.sort && 
             button.dataset.order === container.dataset.order) {
             button.classList.add('active');
         }
@@ -1199,7 +1248,6 @@ function initInteractions() {
             
             const form = e.target;
             const button = form.querySelector('button[type="submit"]');
-            const badge = button.querySelector('.badge');
             const originalText = button.innerHTML;
             
             // 显示加载状态
@@ -1238,92 +1286,12 @@ function initInteractions() {
                     throw new Error(error.message);
                 }
 
-                let data;
-                try {
-                    if (!responseText.trim()) {
-                        throw new Error('服务器返回了空响应');
-                    }
-                    data = JSON.parse(responseText);
-                    
-                    if (!data || typeof data !== 'object') {
-                        throw new Error('服务器返回了无效的数据结构');
-                    }
-                } catch (error) {
-                    console.error('响应处理错误:', {
-                        error: error,
-                        responseText: responseText,
-                        status: response.status,
-                        headers: Object.fromEntries(response.headers.entries())
-                    });
-                    throw new Error(`服务器响应处理失败: ${error.message}`);
-                }
-                
-                // 更新当前按钮状态和计数
-                if (button) {
-                    updateButtonState(button, data);
-                }
-                
-                // 获取目标类型和ID
-                const interactionType = form.getAttribute('data-type'); // 'post' 或 'comment'
-                const interactionAction = form.getAttribute('data-action'); // 'like', 'dislike', 'favorite'
-                
-                // 更新页面上所有相同目标和动作的按钮
-                let targetId;
-                if (interactionType === 'post') {
-                    targetId = "{{ post.id }}";
-                } else {
-                    // 从表单action中提取评论ID
-                    const urlParts = form.action.split('/');
-                    targetId = urlParts[2]; // URL格式: /comment/[id]/[action]
-                }
-                
-                // 查找并更新所有相同目标的按钮
-                document.querySelectorAll(`.interaction-form[data-type="${interactionType}"][data-action="${interactionAction}"]`).forEach(otherForm => {
-                    // 验证是否是相同的目标
-                    let otherTargetId;
-                    if (interactionType === 'post') {
-                        otherTargetId = "{{ post.id }}";
-                    } else {
-                        const otherUrlParts = otherForm.action.split('/');
-                        otherTargetId = otherUrlParts[2];
-                    }
-                    
-                    // 如果是相同目标，则更新按钮
-                    if (String(otherTargetId) === String(targetId)) {
-                        const otherButton = otherForm.querySelector('button[type="submit"]');
-                        if (otherButton) {
-                            updateButtonState(otherButton, data);
-                        }
-                    }
-                });
-                
-                // 辅助函数：更新按钮状态
-                function updateButtonState(buttonElement, data) {
-                    // 更新按钮样式
-                    buttonElement.classList.remove('btn-primary', 'btn-purple', 'btn-warning', 'btn-outline-primary', 'btn-outline-purple', 'btn-outline-warning');
-                    
-                    switch (data.action) {
-                        case 'like':
-                            buttonElement.classList.add(data.active ? 'btn-primary' : 'btn-outline-primary');
-                            break;
-                        case 'dislike':
-                            buttonElement.classList.add(data.active ? 'btn-purple' : 'btn-outline-purple');
-                            break;
-                        case 'favorite':
-                            buttonElement.classList.add(data.active ? 'btn-warning' : 'btn-outline-warning');
-                            break;
-                    }
-                    
-                    // 更新计数显示
-                    const badge = buttonElement.querySelector('.badge');
-                    if (badge) {
-                        badge.textContent = data.count;
-                    }
-                }
+                // 直接刷新页面，模拟CTRL+R的效果
+                location.reload();
             } catch (error) {
                 console.error('Error:', error);
                 alert(error.message || '操作失败，请稍后重试');
-            } finally {
+                // 恢复按钮状态
                 button.disabled = false;
                 button.innerHTML = originalText;
             }
@@ -1705,10 +1673,10 @@ function initCommentCollapse() {
                             <button type="button" class="btn btn-outline-danger faction-toggle" data-faction="anti">反方观点</button>
                         </div>
                         <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-secondary sort-btn-default active" data-target="pro" data-sort="time" data-order="desc">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default active" data-faction="pro" data-sort="time" data-order="desc">
                                 <i class="bi bi-clock"></i> 最新
                             </button>
-                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="pro" data-sort="likes" data-order="desc">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-faction="pro" data-sort="likes" data-order="desc">
                                 <i class="bi bi-hand-thumbs-up"></i> 热门
                             </button>
                         </div>
@@ -1760,10 +1728,10 @@ function initCommentCollapse() {
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5>中立评论</h5>
                         <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="neutral" data-sort="time" data-order="desc">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default active" data-faction="neutral" data-sort="time" data-order="desc">
                                 <i class="bi bi-clock"></i> 最新
                             </button>
-                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-target="neutral" data-sort="likes" data-order="desc">
+                            <button type="button" class="btn btn-outline-secondary sort-btn-default" data-faction="neutral" data-sort="likes" data-order="desc">
                                 <i class="bi bi-hand-thumbs-up"></i> 热门
                             </button>
                         </div>
@@ -1796,4 +1764,3 @@ function initCommentCollapse() {
     </div>
 </div>
 {% endblock %}
-</file>

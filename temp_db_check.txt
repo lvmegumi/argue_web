@@ -1,1 +1,1 @@
-id,username,email,phone,password_hash,avatar,bio,created_at,last_seen,post_count,post_likes_received,comment_likes_received,faction
+id,username,email,phone,password_hash,avatar,bio,created_at,last_seen,post_count,post_likes_received,comment_likes_received,faction,score

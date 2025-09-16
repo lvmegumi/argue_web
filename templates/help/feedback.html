@@ -5,11 +5,24 @@
     <div class="card-body">
         <h1>反馈与建议</h1>
         
+        <!-- 显示闪现消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
         <div class="mt-4">
-            <form>
+            <form method="POST">
                 <div class="mb-3">
                     <label for="subject" class="form-label">主题</label>
-                    <select class="form-select" id="subject">
+                    <select class="form-select" id="subject" name="subject" required>
+                        <option value="">请选择反馈类型</option>
                         <option value="bug">错误报告</option>
                         <option value="suggestion">功能建议</option>
                         <option value="other">其他</option>
@@ -17,23 +30,23 @@
                 </div>
                 <div class="mb-3">
                     <label for="content" class="form-label">内容</label>
-                    <textarea class="form-control" id="content" rows="5"></textarea>
+                    <textarea class="form-control" id="content" name="content" rows="5" required placeholder="请详细描述您的问题或建议..."></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="contact" class="form-label">联系方式(可选)</label>
-                    <input type="text" class="form-control" id="contact">
+                    <input type="text" class="form-control" id="contact" name="contact" placeholder="邮箱或电话">
                 </div>
                 <button type="submit" class="btn btn-primary">提交反馈</button>
             </form>
             
             <div class="mt-4">
                 <h5>其他联系方式</h5>
-                <p>邮箱: support@techforum.com</p>
+                <p>邮箱: lcc21462@gmail.com</p>
             </div>
         </div>
         
         <div class="mt-4">
-            <a href="/help" class="btn btn-outline-primary">返回帮助中心</a>
+            <a href="{{ url_for('help') }}" class="btn btn-outline-primary">返回帮助中心</a>
         </div>
     </div>
 </div>
